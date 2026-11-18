@@ -1,0 +1,1554 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Osciloscopio XY - Análisis V-I</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: #0f0;
+        }
+
+        .instrument {
+            background: linear-gradient(145deg, #1a1a1a, #2a2a2a);
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            max-width: 1000px;
+            width: 100%;
+            border: 1px solid #333;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #888;
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            position: relative;
+        }
+
+        .help-btn {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #0a3d0a, #0d5c0d);
+            color: #0f0;
+            border: 1px solid rgba(0,255,0,0.3);
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            padding: 0;
+            margin: 0;
+        }
+
+        .help-btn:hover {
+            background: linear-gradient(145deg, #0d5c0d, #0a3d0a);
+            box-shadow: 0 0 15px rgba(0,255,0,0.5);
+        }
+
+        .manual-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .manual-overlay.hidden {
+            display: none;
+        }
+
+        .manual-content {
+            background: linear-gradient(145deg, #1a1a1a, #2a2a2a);
+            border: 2px solid rgba(0, 255, 0, 0.5);
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            color: #0f0;
+            box-shadow: 0 0 40px rgba(0, 255, 0, 0.3);
+        }
+
+        .manual-content h1 {
+            font-size: 20px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #0f0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .manual-content h2 {
+            font-size: 14px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #ff9500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .manual-content p, .manual-content ul {
+            font-size: 12px;
+            line-height: 1.6;
+            color: #888;
+            margin-bottom: 12px;
+        }
+
+        .manual-content ul {
+            padding-left: 20px;
+        }
+
+        .manual-content li {
+            margin-bottom: 6px;
+        }
+
+        .manual-content strong {
+            color: #0f0;
+        }
+
+        .manual-content .formula {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px;
+            border-left: 3px solid rgba(0, 255, 0, 0.5);
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            color: #0f0;
+            font-size: 11px;
+        }
+
+        .manual-close {
+            display: block;
+            margin: 20px auto 0;
+            padding: 10px 30px;
+            background: linear-gradient(145deg, #0a3d0a, #0d5c0d);
+            color: #0f0;
+            border: 1px solid rgba(0,255,0,0.3);
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .manual-close:hover {
+            background: linear-gradient(145deg, #0d5c0d, #0a3d0a);
+            box-shadow: 0 0 15px rgba(0,255,0,0.3);
+        }
+
+        .brand {
+            font-size: 24px;
+            color: #0f0;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .model {
+            color: #666;
+        }
+
+        .screen-bezel {
+            background: #000;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 
+                inset 0 0 20px rgba(0,0,0,0.9),
+                0 0 30px rgba(0,255,0,0.1);
+            margin-top: 20px;
+            margin-bottom: 0;
+            position: relative;
+        }
+
+        #screen {
+            display: block;
+            width: 100%;
+            height: 500px;
+            background: #001a00;
+            border-radius: 5px;
+            box-shadow: 0 0 40px rgba(0,255,0,0.2);
+        }
+
+        .measurements {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .measure-box {
+            background: rgba(0,0,0,0.6);
+            padding: 12px;
+            border-radius: 5px;
+            border: 1px solid rgba(0,255,0,0.2);
+            text-align: center;
+        }
+
+        .measure-label {
+            font-size: 9px;
+            color: #666;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        .measure-value {
+            font-size: 20px;
+            color: #0f0;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 5px rgba(0,255,0,0.5);
+        }
+
+        .measure-unit {
+            font-size: 11px;
+            color: #0a0;
+            margin-left: 3px;
+        }
+
+        .load-type {
+            color: #ff9500;
+            font-size: 14px;
+            margin-top: 3px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .control-panel {
+            background: rgba(0,0,0,0.4);
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .phi-control {
+            margin-top: 20px;
+            margin-bottom: 25px;
+            background: rgba(0,0,0,0.6);
+            border: 2px solid rgba(0,255,0,0.3);
+            box-shadow: 0 0 15px rgba(0,255,0,0.2);
+        }
+
+        .phi-control .control-label {
+            font-size: 11px;
+            color: #0f0;
+            font-weight: bold;
+        }
+
+        .phi-control input[type="range"] {
+            height: 35px;
+        }
+
+        .phi-control input[type="range"]::-webkit-slider-thumb {
+            width: 18px;
+            height: 18px;
+        }
+
+        .phi-control .slider-value {
+            font-size: 16px;
+            font-weight: bold;
+            min-width: 70px;
+            border: 1px solid rgba(0,255,0,0.4);
+        }
+
+        .control-label {
+            display: block;
+            font-size: 10px;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        input[type="number"], input[type="range"] {
+            flex: 1;
+            background: rgba(0,0,0,0.8);
+            border: 1px solid rgba(0,255,0,0.3);
+            color: #0f0;
+            padding: 8px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        input[type="number"]:focus, input[type="range"]:focus {
+            outline: none;
+            border-color: rgba(0,255,0,0.6);
+            box-shadow: 0 0 8px rgba(0,255,0,0.3);
+        }
+
+        input[type="range"] {
+            height: 30px;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #0f0;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0,255,0,0.8);
+        }
+
+        .unit {
+            color: #0a0;
+            font-size: 12px;
+            min-width: 40px;
+        }
+
+        .slider-value {
+            background: rgba(0,0,0,0.8);
+            color: #0f0;
+            padding: 4px 8px;
+            border-radius: 3px;
+            min-width: 50px;
+            text-align: center;
+            font-size: 12px;
+            border: 1px solid rgba(0,255,0,0.2);
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background: linear-gradient(145deg, #0a3d0a, #0d5c0d);
+            color: #0f0;
+            border: 1px solid rgba(0,255,0,0.3);
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+
+        button:hover {
+            background: linear-gradient(145deg, #0d5c0d, #0a3d0a);
+            box-shadow: 0 0 15px rgba(0,255,0,0.3);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button.active {
+            background: linear-gradient(145deg, #0d7c0d, #0faf0f);
+            box-shadow: 0 0 20px rgba(0,255,0,0.6);
+            border-color: rgba(0,255,0,0.8);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .button-group button {
+            margin-top: 0;
+            flex: 1;
+        }
+
+        .info-text {
+            text-align: center;
+            color: #444;
+            font-size: 10px;
+            margin-top: 20px;
+            letter-spacing: 1px;
+        }
+
+        .measure-panel {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid rgba(0, 255, 0, 0.5);
+            border-radius: 5px;
+            padding: 12px;
+            padding-top: 8px;
+            color: #0f0;
+            font-size: 11px;
+            min-width: 150px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+            z-index: 100;
+            cursor: move;
+            touch-action: none;
+        }
+
+        .measure-panel.hidden {
+            display: none;
+        }
+
+        .measure-panel.dragging {
+            opacity: 0.8;
+            border-color: rgba(0, 255, 0, 0.8);
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.6);
+        }
+
+        .drag-handle {
+            text-align: center;
+            color: #888;
+            font-size: 14px;
+            margin: -8px -8px 6px -8px;
+            padding: 8px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+            user-select: none;
+            cursor: grab;
+            background: rgba(0, 255, 0, 0.05);
+            border-radius: 5px 5px 0 0;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+            background: rgba(0, 255, 0, 0.1);
+        }
+
+        .drag-handle::before {
+            content: '⋮⋮⋮';
+            letter-spacing: 3px;
+            font-weight: bold;
+        }
+
+        .measure-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 4px 0;
+            padding: 2px 0;
+        }
+
+        .measure-item-label {
+            color: #888;
+        }
+
+        .measure-item-value {
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .measure-item-value.positive {
+            color: #0f0;
+        }
+
+        .measure-item-value.negative {
+            color: #f33;
+        }
+
+        .verify-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 3px solid rgba(0, 255, 0, 0.6);
+            border-radius: 8px;
+            padding: 20px;
+            color: #0f0;
+            font-size: 13px;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(0, 255, 0, 0.5);
+            z-index: 200;
+        }
+
+        .verify-panel.hidden {
+            display: none;
+        }
+
+        .verify-title {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+
+        .verify-row {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .verify-error {
+            margin-top: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #ff9500;
+        }
+
+        .progress-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .progress-ring circle {
+            transition: stroke-dashoffset 0.05s linear;
+        }
+    </style>
+</head>
+<body>
+    <div class="instrument">
+        <div class="header">
+            <div class="brand">SCOPE-XY</div>
+            <div class="model">Voltage-Current Analyzer</div>
+            <button class="help-btn" id="helpBtn">?</button>
+        </div>
+
+        <div class="controls">
+            <div class="control-panel">
+                <label class="control-label">Tensión RMS (Vrms)</label>
+                <div class="input-group">
+                    <input type="number" id="vrms" value="230" min="1" max="10000" step="1">
+                    <span class="unit">V</span>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <label class="control-label">Impedancia |Z|</label>
+                <div class="input-group">
+                    <input type="number" id="zmod" value="50" min="0.1" max="10000" step="0.1">
+                    <span class="unit">Ω</span>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <label class="control-label">Rshunt (métrica)</label>
+                <div class="input-group">
+                    <input type="number" id="rshunt" value="10" min="0.1" max="1000" step="0.1">
+                    <span class="unit">Ω</span>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <label class="control-label">Frecuencia</label>
+                <div class="input-group">
+                    <input type="number" id="freq" value="50" min="1" max="1000" step="1">
+                    <span class="unit">Hz</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="screen-bezel">
+            <canvas id="screen"></canvas>
+        </div>
+
+        <div class="control-panel phi-control">
+            <label class="control-label">⚡ ÁNGULO φ (ARGUMENTO DE Z)</label>
+            <div class="input-group">
+                <input type="range" id="phi" value="30" min="-90" max="90" step="1">
+                <span class="slider-value" id="phiValue">30°</span>
+            </div>
+        </div>
+
+        <div class="measurements">
+            <div class="measure-box">
+                <div class="measure-label">VRMS</div>
+                <div class="measure-value" id="vDisplay">0<span class="measure-unit">V</span></div>
+            </div>
+            <div class="measure-box">
+                <div class="measure-label">IRMS</div>
+                <div class="measure-value" id="iDisplay">0<span class="measure-unit">A</span></div>
+            </div>
+            <div class="measure-box">
+                <div class="measure-label">|Z|</div>
+                <div class="measure-value" id="zDisplay">0<span class="measure-unit">Ω</span></div>
+            </div>
+            <div class="measure-box">
+                <div class="measure-label">φ (ARG Z)</div>
+                <div class="measure-value" id="phiDisplay">0<span class="measure-unit">°</span></div>
+            </div>
+            <div class="measure-box">
+                <div class="measure-label">S (APARENTE)</div>
+                <div class="measure-value" id="sDisplay">0<span class="measure-unit">VA</span></div>
+            </div>
+            <div class="measure-box">
+                <div class="measure-label">P (ACTIVA)</div>
+                <div class="measure-value" id="pDisplay">0<span class="measure-unit">W</span></div>
+            </div>
+            <div class="measure-box">
+                <div class="measure-label">Q (REACTIVA)</div>
+                <div class="measure-value" id="qDisplay">0<span class="measure-unit">VAR</span></div>
+            </div>
+            <div class="measure-box">
+                <div class="measure-label">COS φ (FP)</div>
+                <div class="measure-value" id="fpDisplay">1.00</div>
+                <div class="load-type" id="loadType">RESISTIVA</div>
+            </div>
+        </div>
+
+        <div class="control-panel" style="margin-top: 15px;">
+            <div class="button-group">
+                <button id="measureBtn">📍 MEDIDA</button>
+                <button id="verifyBtn">∫ VERIFICAR P</button>
+                <button id="resetBtn">⟲ RESET</button>
+            </div>
+        </div>
+
+        <div class="info-text">
+            v(t) = √2·Vrms·cos(ωt) [Eje Y] │ i(t) = √2·Irms·cos(ωt-φ) [Eje X]
+        </div>
+    </div>
+
+    <div id="manualOverlay" class="manual-overlay hidden">
+        <div class="manual-content">
+            <h1>Manual de Usuario - Osciloscopio XY</h1>
+            <p style="text-align: center; color: #888; font-size: 11px; margin-top: -10px; margin-bottom: 20px;">
+                Desarrollado por Gabriel Agirre &amp; Claude (Anthropic) • Noviembre 2025
+            </p>
+            
+            <h2>⚡ Introducción</h2>
+            <p>Esta simulación de osciloscopio en modo XY visualiza el gráfico de fase de tensión y corriente en circuitos de corriente alterna. El eje horizontal muestra i(t) y el vertical v(t), generando trazas elípticas que revelan la naturaleza reactiva de la impedancia.</p>
+            
+            <h2>📐 Interpretación de las Trazas</h2>
+            <ul>
+                <li><strong>Línea recta diagonal (φ=0°):</strong> Carga puramente resistiva. Tensión y corriente en fase.</li>
+                <li><strong>Elipse inclinada (0°&lt;|φ|&lt;90°):</strong> Carga mixta (resistiva + reactiva). El área de la elipse es proporcional a Q.</li>
+                <li><strong>Círculo/elipse recta (φ≈±90°):</strong> Carga puramente reactiva (inductiva si φ>0, capacitiva si φ&lt;0).</li>
+                <li><strong>Sentido de rotación:</strong> El punto luminoso gira en sentido horario (⟳) para cargas inductivas, y antihorario (⟲) para capacitivas.</li>
+            </ul>
+            
+            <h2>🎛️ Controles de Entrada</h2>
+            <ul>
+                <li><strong>Vrms [V]:</strong> Valor eficaz de la tensión aplicada.</li>
+                <li><strong>|Z| [Ω]:</strong> Módulo de la impedancia del circuito.</li>
+                <li><strong>Rshunt [Ω]:</strong> Resistencia de referencia para traducir intensidades en voltajes equivalentes. Permite dotarnos de una métrica euclidiana (medición de distancias en voltios). Rshunt es independiente de la impedancia.</li>
+                <li><strong>Frecuencia [Hz]:</strong> Frecuencia de la red (típicamente 50 o 60 Hz).</li>
+                <li><strong>φ [°]:</strong> Argumento de la impedancia. Controla el desfase entre v e i:
+                    <ul style="margin-top: 5px;">
+                        <li>φ > 0: corriente retrasada (carga inductiva)</li>
+                        <li>φ &lt; 0: corriente adelantada (carga capacitiva)</li>
+                    </ul>
+                </li>
+            </ul>
+            
+            <h2>📊 Displays de Salida</h2>
+            <p>El instrumento calcula automáticamente:</p>
+            <ul>
+                <li><strong>Irms = Vrms / |Z|</strong> [A]</li>
+                <li><strong>S = Vrms · Irms</strong> [VA] - Potencia aparente</li>
+                <li><strong>P = S · cos(φ)</strong> [W] - Potencia activa</li>
+                <li><strong>Q = S · sin(φ)</strong> [VAR] - Potencia reactiva</li>
+                <li><strong>cos(φ)</strong> - Factor de potencia</li>
+                <li><strong>Tipo de carga:</strong> Resistiva / Inductiva / Capacitiva</li>
+            </ul>
+            
+            <h2>📍 Modo Medida</h2>
+            <p>Activa el botón <strong>"📍 MEDIDA"</strong> para realizar mediciones sobre la traza:</p>
+            <ul>
+                <li><strong>Click/Touch breve:</strong> Muestra panel flotante con v(t), i(t) y p(t)=v·i instantáneos en ese punto. Si p(t)>0, energía fluye hacia la carga; si p(t)&lt;0, retorna desde la carga.</li>
+                <li><strong>Touch largo (>500ms):</strong> Fija punto A con marca naranja.</li>
+                <li><strong>Touch breve después:</strong> Fija punto B con marca cyan y calcula la distancia euclidiana |A-B| usando la métrica: d = √[(vₐ-vᵦ)² + (Rshunt·(iₐ-iᵦ))²]</li>
+                <li><strong>Captura del origen:</strong> Click cerca del centro captura el origen (0,0), útil para medir semiejes directamente desde el centro.</li>
+                <li><strong>Panel arrastrable:</strong> Mantén presionado el panel de medición y arrástralo para moverlo donde no estorbe.</li>
+            </ul>
+            <p><strong>Aplicación:</strong> La distancia |A-B| permite medir los semiejes de la elipse. Sabiendo que el área de la elipse A = π·a·b, y que A es proporcional a Q, puedes verificar experimentalmente la potencia reactiva.</p>
+            
+            <h2>∫ Verificación de P por Integración</h2>
+            <p>El botón <strong>"∫ VERIFICAR P"</strong> realiza una verificación experimental de la potencia activa:</p>
+            <ul>
+                <li>Integra numéricamente p(t)=v(t)·i(t) durante un ciclo completo.</li>
+                <li>Calcula P_integrada = (1/T)∫₀ᵀ p(t)dt</li>
+                <li>Compara con P_teórica = Vrms·Irms·cos(φ)</li>
+                <li>Muestra el error porcentual (típicamente &lt;1% por discretización numérica).</li>
+            </ul>
+            <p>Esto demuestra que la fórmula de potencia activa es el promedio temporal de la potencia instantánea.</p>
+            
+            <h2>📏 Método del Rectángulo para Medir P</h2>
+            <p>En los puntos extremos de la elipse (donde la tangente es horizontal o vertical), el área del rectángulo desde el origen vale exactamente 2P.</p>
+            <p><strong>Procedimiento:</strong></p>
+            <ul>
+                <li>Activa modo MEDIDA</li>
+                <li>Click en cualquier punto extremo de la elipse</li>
+                <li>Lee las coordenadas (vs, v)</li>
+                <li>Calcula: <strong>P = |v·vs| / (2Rs)</strong></li>
+            </ul>
+            
+            <h2>🔄 Botón Reset</h2>
+            <p>Limpia la traza, elimina marcas de medición, cancela verificaciones en curso y restaura la posición del panel de medición.</p>
+            
+            <h2>🧮 Fórmulas Fundamentales</h2>
+            <div class="formula">
+v(t) = √2·Vrms·cos(ωt)<br>
+i(t) = √2·Irms·cos(ωt - φ)<br>
+p(t) = v(t)·i(t) = Vrms·Irms·[cos(φ) + cos(2ωt - φ)]<br>
+P = ⟨p(t)⟩ = Vrms·Irms·cos(φ)<br>
+Q = Vrms·Irms·sin(φ)<br>
+S = √(P² + Q²) = Vrms·Irms
+            </div>
+            
+            <h2>💡 Notas Pedagógicas</h2>
+            <ul>
+                <li>La traza XY es la representación paramétrica de la potencia instantánea en el plano v-i.</li>
+                <li>El área de la elipse está relacionada con la energía reactiva que oscila entre fuente y carga.</li>
+                <li>El factor de potencia cos(φ) indica qué fracción de S se convierte en trabajo útil (P).</li>
+                <li>Para corregir el factor de potencia en instalaciones inductivas, se añaden condensadores en paralelo (φ negativo) para compensar.</li>
+            </ul>
+            
+            <button class="manual-close" id="closeManual">CERRAR</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * OSCILOSCOPIO XY - Análisis V-I en Corriente Alterna
+         * Herramienta didáctica para visualización de relaciones fasoriales
+         * 
+         * Características:
+         * - Visualización XY de v(t) vs i(t) con trazas elípticas
+         * - Cálculo automático de P, Q, S y factor de potencia
+         * - Modo medida interactivo con métrica euclidiana configurable (Rshunt)
+         * - Verificación experimental de P por integración numérica
+         * - Panel de medición arrastrable para móviles
+         * - Manual de usuario integrado
+         * 
+         * Versión: 1.0
+         * Fecha: Noviembre 2025
+         */
+        
+        const canvas = document.getElementById('screen');
+        const ctx = canvas.getContext('2d');
+        
+        // Ajustar resolución del canvas
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Estado
+        let state = {
+            vrms: 230,
+            zmod: 50,
+            rshunt: 10,
+            phi: 30,
+            freq: 50,
+            time: 0,
+            trail: [],
+            measureMode: false,
+            pointA: null,
+            pointB: null,
+            touchStartTime: 0,
+            verifying: false,
+            verifyStartTime: 0,
+            verifyData: [],
+            verifyResult: null,
+            verifyDisplayTime: 0,
+            dragging: false,
+            dragOffsetX: 0,
+            dragOffsetY: 0,
+            panelX: null,
+            panelY: null
+        };
+
+        // Referencias DOM
+        const inputs = {
+            vrms: document.getElementById('vrms'),
+            zmod: document.getElementById('zmod'),
+            rshunt: document.getElementById('rshunt'),
+            phi: document.getElementById('phi'),
+            freq: document.getElementById('freq'),
+            phiValue: document.getElementById('phiValue'),
+            measureBtn: document.getElementById('measureBtn'),
+            verifyBtn: document.getElementById('verifyBtn'),
+            resetBtn: document.getElementById('resetBtn'),
+            helpBtn: document.getElementById('helpBtn'),
+            closeManual: document.getElementById('closeManual'),
+            manualOverlay: document.getElementById('manualOverlay')
+        };
+
+        const displays = {
+            v: document.getElementById('vDisplay'),
+            i: document.getElementById('iDisplay'),
+            z: document.getElementById('zDisplay'),
+            phi: document.getElementById('phiDisplay'),
+            s: document.getElementById('sDisplay'),
+            p: document.getElementById('pDisplay'),
+            q: document.getElementById('qDisplay'),
+            fp: document.getElementById('fpDisplay'),
+            loadType: document.getElementById('loadType')
+        };
+
+        // Event listeners con validación
+        inputs.vrms.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val) && val > 0) state.vrms = val;
+        });
+        inputs.zmod.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val) && val >= 0.1) state.zmod = val;
+        });
+        inputs.rshunt.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val) && val >= 0.1) state.rshunt = val;
+        });
+        inputs.phi.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val)) {
+                state.phi = val;
+                inputs.phiValue.textContent = state.phi + '°';
+            }
+        });
+        inputs.freq.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            if (!isNaN(val) && val > 0) state.freq = val;
+        });
+        
+        inputs.measureBtn.addEventListener('click', () => {
+            state.measureMode = !state.measureMode;
+            inputs.measureBtn.classList.toggle('active', state.measureMode);
+            canvas.style.cursor = state.measureMode ? 'crosshair' : 'default';
+            if (!state.measureMode) {
+                state.pointA = null;
+                state.pointB = null;
+                state.panelX = null;
+                state.panelY = null;
+                measurePanel.style.left = '';
+                measurePanel.style.top = '';
+                measurePanel.style.right = '30px';
+            }
+        });
+        
+        inputs.verifyBtn.addEventListener('click', () => {
+            if (!state.verifying) {
+                state.verifying = true;
+                state.verifyStartTime = state.time;
+                state.verifyData = [];
+                state.verifyResult = null;
+            }
+        });
+        
+        inputs.resetBtn.addEventListener('click', () => {
+            state.trail = [];
+            state.time = 0;
+            state.pointA = null;
+            state.pointB = null;
+            state.verifyResult = null;
+            state.verifying = false;
+            state.panelX = null;
+            state.panelY = null;
+            measurePanel.style.left = '';
+            measurePanel.style.top = '';
+            measurePanel.style.right = '30px';
+        });
+
+        // Event listeners para el manual de ayuda
+        inputs.helpBtn.addEventListener('click', () => {
+            inputs.manualOverlay.classList.remove('hidden');
+        });
+
+        inputs.closeManual.addEventListener('click', () => {
+            inputs.manualOverlay.classList.add('hidden');
+        });
+
+        // Cerrar manual con click fuera del contenido
+        inputs.manualOverlay.addEventListener('click', (e) => {
+            if (e.target === inputs.manualOverlay) {
+                inputs.manualOverlay.classList.add('hidden');
+            }
+        });
+
+        // Cerrar manual con tecla ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !inputs.manualOverlay.classList.contains('hidden')) {
+                inputs.manualOverlay.classList.add('hidden');
+            }
+        });
+
+        // Event listeners para modo medida en canvas
+        canvas.addEventListener('mousedown', handleTouchStart);
+        canvas.addEventListener('touchstart', handleTouchStart);
+        canvas.addEventListener('mouseup', handleTouchEnd);
+        canvas.addEventListener('touchend', handleTouchEnd);
+        canvas.addEventListener('click', handleClick);
+
+        function handleTouchStart(e) {
+            if (!state.measureMode || state.dragging) return;
+            // No procesar si el touch es sobre el panel de medición
+            if (e.target.closest('.measure-panel')) return;
+            state.touchStartTime = Date.now();
+        }
+
+        function handleTouchEnd(e) {
+            if (!state.measureMode || state.dragging) return;
+            if (e.target.closest('.measure-panel')) return;
+            const touchDuration = Date.now() - state.touchStartTime;
+            
+            if (touchDuration > 500) {
+                // Touch largo: fijar punto A
+                const point = getCanvasPoint(e);
+                
+                // Verificar si está cerca del origen
+                if (isNearOrigin(point)) {
+                    // Evitar capturar origen dos veces
+                    if (isOriginPoint(state.pointB)) {
+                        return; // Ignorar, ya hay origen en B
+                    }
+                    state.pointA = { v: 0, i: 0, irms: state.vrms / state.zmod };
+                } else if (state.trail.length > 0) {
+                    state.pointA = findNearestTracePoint(point);
+                }
+                state.pointB = null;
+            }
+        }
+
+        function handleClick(e) {
+            if (!state.measureMode || state.dragging) return;
+            if (e.target.closest('.measure-panel')) return;
+            const touchDuration = Date.now() - state.touchStartTime;
+            
+            if (touchDuration <= 500) {
+                // Touch breve
+                const point = getCanvasPoint(e);
+                let nearestPoint = null;
+                
+                // Verificar si está cerca del origen
+                if (isNearOrigin(point)) {
+                    // Si ya hay un punto A que es origen, ignorar
+                    if (state.pointA && isOriginPoint(state.pointA)) {
+                        return; // Evitar doble origen
+                    }
+                    // Si ya hay un punto B que es origen, ignorar
+                    if (state.pointB && isOriginPoint(state.pointB)) {
+                        return; // Evitar doble origen
+                    }
+                    nearestPoint = { v: 0, i: 0, irms: state.vrms / state.zmod };
+                } else if (state.trail.length > 0) {
+                    nearestPoint = findNearestTracePoint(point);
+                }
+                
+                if (nearestPoint) {
+                    if (state.pointA && !state.pointB) {
+                        // Ya hay punto A, establecer punto B
+                        state.pointB = nearestPoint;
+                    } else {
+                        // No hay punto A, solo mostrar medida instantánea
+                        state.pointA = nearestPoint;
+                        state.pointB = null;
+                    }
+                }
+            }
+        }
+
+        function getCanvasPoint(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            
+            if (e.type.startsWith('touch')) {
+                const touch = e.touches[0] || e.changedTouches[0];
+                clientX = touch.clientX;
+                clientY = touch.clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function findNearestTracePoint(canvasPoint) {
+            if (state.trail.length === 0) return null;
+            
+            const { centerX, centerY, scaleX, scaleY } = getScaleParams();
+            
+            let minDist = Infinity;
+            let nearestPoint = null;
+            
+            for (let point of state.trail) {
+                const px = centerX + point.i * scaleX;
+                const py = centerY - point.v * scaleY;
+                
+                // Distancia euclidiana en píxeles
+                const dist = Math.sqrt((px - canvasPoint.x) ** 2 + (py - canvasPoint.y) ** 2);
+                
+                if (dist < minDist) {
+                    minDist = dist;
+                    nearestPoint = point;
+                }
+            }
+            
+            return nearestPoint;
+        }
+
+        // Verificar si el click está cerca del origen (centro de la pantalla)
+        function isNearOrigin(canvasPoint) {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            const centerX = w / 2;
+            const centerY = h / 2;
+            
+            const threshold = 30; // píxeles de tolerancia
+            const dist = Math.sqrt((canvasPoint.x - centerX) ** 2 + (canvasPoint.y - centerY) ** 2);
+            
+            return dist < threshold;
+        }
+
+        // Verificar si un punto es el origen (0,0)
+        function isOriginPoint(point) {
+            return point && point.v === 0 && point.i === 0;
+        }
+
+        // Calcular valores instantáneos
+        function getInstantValues(t) {
+            const omega = 2 * Math.PI * state.freq;
+            const phiRad = state.phi * Math.PI / 180;
+            
+            const v = Math.sqrt(2) * state.vrms * Math.cos(omega * t);
+            const irms = state.vrms / state.zmod;
+            const i = Math.sqrt(2) * irms * Math.cos(omega * t - phiRad);
+            
+            return { v, i, irms };
+        }
+
+        // Función auxiliar para calcular parámetros de escala (DRY)
+        function getScaleParams() {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            const centerX = w / 2;
+            const centerY = h / 2;
+            
+            const irms = state.vrms / state.zmod;
+            const iMax = Math.sqrt(2) * irms * 1.2;
+            const vMax = Math.sqrt(2) * state.vrms * 1.2;
+            const scaleX = (w * 0.4) / iMax;
+            const scaleY = (h * 0.4) / vMax;
+            
+            return { w, h, centerX, centerY, scaleX, scaleY, irms };
+        }
+
+        // Actualizar displays
+        function updateDisplays() {
+            const irms = state.vrms / state.zmod;
+            const phiRad = state.phi * Math.PI / 180;
+            const S = state.vrms * irms;
+            const P = S * Math.cos(phiRad);
+            const Q = S * Math.sin(phiRad);
+            const cosPhi = Math.cos(phiRad);
+
+            displays.v.innerHTML = state.vrms.toFixed(1) + '<span class="measure-unit">V</span>';
+            displays.i.innerHTML = irms.toFixed(3) + '<span class="measure-unit">A</span>';
+            displays.z.innerHTML = state.zmod.toFixed(1) + '<span class="measure-unit">Ω</span>';
+            displays.phi.innerHTML = state.phi.toFixed(1) + '<span class="measure-unit">°</span>';
+            displays.s.innerHTML = S.toFixed(2) + '<span class="measure-unit">VA</span>';
+            displays.p.innerHTML = P.toFixed(2) + '<span class="measure-unit">W</span>';
+            displays.q.innerHTML = Q.toFixed(2) + '<span class="measure-unit">VAR</span>';
+            displays.fp.textContent = cosPhi.toFixed(3);
+
+            // Tipo de carga
+            if (Math.abs(state.phi) < 1) {
+                displays.loadType.textContent = 'RESISTIVA';
+                displays.loadType.style.color = '#ff9500';
+            } else if (state.phi > 0) {
+                displays.loadType.textContent = 'INDUCTIVA';
+                displays.loadType.style.color = '#0099ff';
+            } else {
+                displays.loadType.textContent = 'CAPACITIVA';
+                displays.loadType.style.color = '#ff0099';
+            }
+        }
+
+        // Dibujar rejilla
+        function drawGrid() {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            
+            ctx.strokeStyle = 'rgba(0, 100, 0, 0.15)';
+            ctx.lineWidth = 0.5;
+            
+            const divX = w / 10;
+            const divY = h / 10;
+            
+            for (let i = 0; i <= 10; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * divX, 0);
+                ctx.lineTo(i * divX, h);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(0, i * divY);
+                ctx.lineTo(w, i * divY);
+                ctx.stroke();
+            }
+            
+            // Ejes centrales
+            ctx.strokeStyle = 'rgba(0, 150, 0, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(w / 2, 0);
+            ctx.lineTo(w / 2, h);
+            ctx.moveTo(0, h / 2);
+            ctx.lineTo(w, h / 2);
+            ctx.stroke();
+        }
+
+        // Dibujar traza con estela
+        function drawTrace() {
+            const { w, h, centerX, centerY, scaleX, scaleY } = getScaleParams();
+            
+            // Verificar que las escalas sean finitas
+            if (!isFinite(scaleX) || !isFinite(scaleY)) {
+                return;
+            }
+            
+            // Dibujar estela con fade
+            ctx.lineWidth = 1.5;
+            const trailLength = state.trail.length;
+            
+            for (let i = 1; i < trailLength; i++) {
+                const alpha = (i / trailLength) * 0.4;
+                ctx.strokeStyle = `rgba(0, 255, 0, ${alpha})`;
+                
+                ctx.beginPath();
+                ctx.moveTo(
+                    centerX + state.trail[i-1].i * scaleX,
+                    centerY - state.trail[i-1].v * scaleY
+                );
+                ctx.lineTo(
+                    centerX + state.trail[i].i * scaleX,
+                    centerY - state.trail[i].v * scaleY
+                );
+                ctx.stroke();
+            }
+            
+            // Punto actual brillante
+            if (trailLength > 0) {
+                const current = state.trail[trailLength - 1];
+                const x = centerX + current.i * scaleX;
+                const y = centerY - current.v * scaleY;
+                
+                // Verificar que las coordenadas sean finitas
+                if (!isFinite(x) || !isFinite(y)) {
+                    return;
+                }
+                
+                // Halo
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, 8);
+                gradient.addColorStop(0, 'rgba(0, 255, 0, 1)');
+                gradient.addColorStop(0.5, 'rgba(0, 255, 0, 0.5)');
+                gradient.addColorStop(1, 'rgba(0, 255, 0, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Punto central
+                ctx.fillStyle = '#0f0';
+                ctx.beginPath();
+                ctx.arc(x, y, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Etiquetas de ejes
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.font = '11px Courier New';
+            ctx.textAlign = 'center';
+            ctx.fillText('i(t)', w - 20, centerY - 5);
+            ctx.fillText('v(t)', centerX + 5, 15);
+        }
+
+        // Dibujar marcas de medición
+        function drawMeasureMarks() {
+            if (!state.measureMode) return;
+            
+            const { w, h, centerX, centerY, scaleX, scaleY } = getScaleParams();
+            
+            // Dibujar punto A
+            if (state.pointA) {
+                const ax = centerX + state.pointA.i * scaleX;
+                const ay = centerY - state.pointA.v * scaleY;
+                
+                if (isOriginPoint(state.pointA)) {
+                    // El origen se dibuja como círculo verde
+                    ctx.strokeStyle = '#0f0';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(ax, ay, 6, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(ax, ay, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Puntos de traza como cruz naranja
+                    ctx.strokeStyle = '#ff9500';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(ax - 8, ay);
+                    ctx.lineTo(ax + 8, ay);
+                    ctx.moveTo(ax, ay - 8);
+                    ctx.lineTo(ax, ay + 8);
+                    ctx.stroke();
+                }
+                
+                // Etiqueta A
+                ctx.fillStyle = isOriginPoint(state.pointA) ? '#0f0' : '#ff9500';
+                ctx.font = 'bold 12px Courier New';
+                ctx.fillText('A', ax + 12, ay - 12);
+            }
+            
+            // Dibujar punto B
+            if (state.pointB) {
+                const bx = centerX + state.pointB.i * scaleX;
+                const by = centerY - state.pointB.v * scaleY;
+                
+                if (isOriginPoint(state.pointB)) {
+                    // El origen se dibuja como círculo verde
+                    ctx.strokeStyle = '#0f0';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(bx, by, 6, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(bx, by, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Puntos de traza como cruz cyan
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(bx - 8, by);
+                    ctx.lineTo(bx + 8, by);
+                    ctx.moveTo(bx, by - 8);
+                    ctx.lineTo(bx, by + 8);
+                    ctx.stroke();
+                }
+                
+                // Etiqueta B
+                ctx.fillStyle = isOriginPoint(state.pointB) ? '#0f0' : '#00ffff';
+                ctx.font = 'bold 12px Courier New';
+                ctx.fillText('B', bx + 12, by - 12);
+                
+                // Línea entre A y B
+                if (state.pointA) {
+                    const ax = centerX + state.pointA.i * scaleX;
+                    const ay = centerY - state.pointA.v * scaleY;
+                    
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([3, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(ax, ay);
+                    ctx.lineTo(bx, by);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+        }
+
+        // Crear panel de medición
+        function createMeasurePanel() {
+            const panel = document.createElement('div');
+            panel.id = 'measurePanel';
+            panel.className = 'measure-panel hidden';
+            document.querySelector('.screen-bezel').appendChild(panel);
+            
+            // Event listeners para drag
+            panel.addEventListener('mousedown', startDrag);
+            panel.addEventListener('touchstart', startDrag, { passive: false });
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('touchmove', drag, { passive: false });
+            document.addEventListener('mouseup', endDrag);
+            document.addEventListener('touchend', endDrag);
+            
+            return panel;
+        }
+
+        function startDrag(e) {
+            const panel = e.target.closest('.measure-panel');
+            if (panel && !state.dragging) {
+                // Prevenir que active medición en canvas
+                e.stopPropagation();
+                
+                state.dragging = true;
+                measurePanel.classList.add('dragging');
+                
+                const rect = measurePanel.getBoundingClientRect();
+                const bezelRect = document.querySelector('.screen-bezel').getBoundingClientRect();
+                
+                let clientX, clientY;
+                if (e.type === 'touchstart') {
+                    e.preventDefault();
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+                
+                state.dragOffsetX = clientX - rect.left;
+                state.dragOffsetY = clientY - rect.top;
+            }
+        }
+
+        function drag(e) {
+            if (!state.dragging) return;
+            
+            e.stopPropagation();
+            
+            let clientX, clientY;
+            if (e.type === 'touchmove') {
+                e.preventDefault();
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            const bezelRect = document.querySelector('.screen-bezel').getBoundingClientRect();
+            const panelRect = measurePanel.getBoundingClientRect();
+            
+            // Calcular nueva posición relativa al bezel
+            let newX = clientX - bezelRect.left - state.dragOffsetX;
+            let newY = clientY - bezelRect.top - state.dragOffsetY;
+            
+            // Limitar dentro del bezel
+            newX = Math.max(0, Math.min(newX, bezelRect.width - panelRect.width));
+            newY = Math.max(0, Math.min(newY, bezelRect.height - panelRect.height));
+            
+            state.panelX = newX;
+            state.panelY = newY;
+            
+            measurePanel.style.left = newX + 'px';
+            measurePanel.style.top = newY + 'px';
+            measurePanel.style.right = 'auto';
+        }
+
+        function endDrag() {
+            if (state.dragging) {
+                state.dragging = false;
+                measurePanel.classList.remove('dragging');
+            }
+        }
+
+        const measurePanel = createMeasurePanel();
+
+        // Actualizar panel de medición
+        function updateMeasurePanel() {
+            if (!state.measureMode || !state.pointA) {
+                measurePanel.classList.add('hidden');
+                return;
+            }
+            
+            measurePanel.classList.remove('hidden');
+            
+            // Restaurar posición si fue arrastrado
+            if (state.panelX !== null) {
+                measurePanel.style.left = state.panelX + 'px';
+                measurePanel.style.top = state.panelY + 'px';
+                measurePanel.style.right = 'auto';
+            }
+            
+            const p = state.pointA.v * state.pointA.i;
+            const pClass = p >= 0 ? 'positive' : 'negative';
+            
+            let html = '<div class="drag-handle" title="Arrastra para mover">⋮⋮⋮</div>';
+            
+            html += `
+                <div class="measure-item">
+                    <span class="measure-item-label">v(t):</span>
+                    <span class="measure-item-value">${state.pointA.v.toFixed(2)} V</span>
+                </div>
+                <div class="measure-item">
+                    <span class="measure-item-label">i(t):</span>
+                    <span class="measure-item-value">${state.pointA.i.toFixed(3)} A</span>
+                </div>
+                <div class="measure-item">
+                    <span class="measure-item-label">p(t):</span>
+                    <span class="measure-item-value ${pClass}">${p.toFixed(2)} W</span>
+                </div>
+            `;
+            
+            if (state.pointB) {
+                // Calcular distancia usando Rshunt para métrica euclidiana
+                const dv = state.pointA.v - state.pointB.v;
+                const di = state.pointA.i - state.pointB.i;
+                const distance = Math.sqrt(dv * dv + (state.rshunt * di) ** 2);
+                
+                html += `
+                    <div class="measure-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,255,0,0.3);">
+                        <span class="measure-item-label">|A-B|:</span>
+                        <span class="measure-item-value">${distance.toFixed(2)} V</span>
+                    </div>
+                `;
+            }
+            
+            measurePanel.innerHTML = html;
+        }
+
+        // Crear panel de verificación
+        function createVerifyPanel() {
+            const panel = document.createElement('div');
+            panel.id = 'verifyPanel';
+            panel.className = 'verify-panel hidden';
+            document.querySelector('.screen-bezel').appendChild(panel);
+            return panel;
+        }
+
+        const verifyPanel = createVerifyPanel();
+
+        // Actualizar verificación de potencia
+        function updateVerification() {
+            if (state.verifying) {
+                const omega = 2 * Math.PI * state.freq;
+                const period = 1 / state.freq;
+                const elapsed = state.time - state.verifyStartTime;
+                
+                // Recolectar datos durante un ciclo completo
+                if (elapsed < period) {
+                    const values = getInstantValues(state.time);
+                    state.verifyData.push({
+                        t: state.time,
+                        p: values.v * values.i
+                    });
+                    
+                    // Mostrar progreso en el botón
+                    const progress = (elapsed / period) * 100;
+                    inputs.verifyBtn.textContent = `∫ ${progress.toFixed(0)}%`;
+                } else {
+                    // Ciclo completado, calcular integral
+                    const dt = period / state.verifyData.length;
+                    let integral = 0;
+                    for (let data of state.verifyData) {
+                        integral += data.p * dt;
+                    }
+                    const P_integrated = integral / period;
+                    
+                    // Calcular P teórica
+                    const phiRad = state.phi * Math.PI / 180;
+                    const irms = state.vrms / state.zmod;
+                    const S = state.vrms * irms;
+                    const P_theoretical = S * Math.cos(phiRad);
+                    
+                    const error = Math.abs(P_integrated - P_theoretical) / Math.abs(P_theoretical) * 100;
+                    
+                    state.verifyResult = {
+                        integrated: P_integrated,
+                        theoretical: P_theoretical,
+                        error: error
+                    };
+                    state.verifying = false;
+                    state.verifyDisplayTime = Date.now();
+                    
+                    inputs.verifyBtn.textContent = '∫ VERIFICAR P';
+                }
+            }
+            
+            // Mostrar resultado si existe
+            if (state.verifyResult) {
+                const elapsed = (Date.now() - state.verifyDisplayTime) / 1000;
+                
+                if (elapsed < 5) {
+                    verifyPanel.classList.remove('hidden');
+                    verifyPanel.innerHTML = `
+                        <div class="verify-title">VERIFICACIÓN DE POTENCIA ACTIVA</div>
+                        <div class="verify-row">P (integrada): ${state.verifyResult.integrated.toFixed(3)} W</div>
+                        <div class="verify-row">P (teórica): ${state.verifyResult.theoretical.toFixed(3)} W</div>
+                        <div class="verify-error">Error: ${state.verifyResult.error.toFixed(2)}%</div>
+                    `;
+                } else {
+                    verifyPanel.classList.add('hidden');
+                    state.verifyResult = null;
+                }
+            } else {
+                verifyPanel.classList.add('hidden');
+            }
+        }
+
+        // Loop de animación
+        function animate() {
+            const w = canvas.width / window.devicePixelRatio;
+            const h = canvas.height / window.devicePixelRatio;
+            
+            // Limpiar con fade
+            ctx.fillStyle = 'rgba(0, 26, 0, 0.05)';
+            ctx.fillRect(0, 0, w, h);
+            
+            // Dibujar rejilla
+            drawGrid();
+            
+            // Calcular punto actual
+            const values = getInstantValues(state.time);
+            state.trail.push(values);
+            
+            // Limitar longitud de la estela (1 periodo completo)
+            const maxPoints = Math.ceil(state.freq * 2);
+            if (state.trail.length > maxPoints) {
+                state.trail.shift();
+            }
+            
+            // Dibujar traza
+            drawTrace();
+            
+            // Dibujar marcas de medición
+            drawMeasureMarks();
+            
+            // Actualizar displays
+            updateDisplays();
+            
+            // Actualizar panel de medición
+            updateMeasurePanel();
+            
+            // Actualizar verificación
+            updateVerification();
+            
+            // Avanzar tiempo (velocidad proporcional a frecuencia)
+            state.time += 0.01 / state.freq;
+            
+            requestAnimationFrame(animate);
+        }
+
+        // Iniciar
+        animate();
+    </script>
+</body>
+</html>
