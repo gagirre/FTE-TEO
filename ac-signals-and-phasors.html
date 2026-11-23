@@ -8,6 +8,8 @@
   :root {
     --red: #d62f3c;
     --blue: #1f6fd1;
+    --orange: #ef7a12;
+    --green: #22924a;
     --ghost: #8f9aa6;
     --ghost-ink: #66727f;
     --ink: #1f2933;
@@ -16,6 +18,7 @@
     --bg: #f2f4f6;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scrollbar-gutter: stable; }   /* la barra de desplazamiento no cambia el ancho */
   body {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     background: var(--bg);
@@ -23,7 +26,7 @@
     padding: 8px;
   }
   .container {
-    max-width: 1100px; margin: 0 auto; background: #fff;
+    max-width: 1200px; margin: 0 auto; background: #fff;
     border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
   }
   .header {
@@ -67,7 +70,7 @@
     display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 22px;
     padding: 10px 8px 2px; font-weight: 600; font-size: 0.95rem;
   }
-  .toggles label { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .toggles label { display: flex; align-items: center; gap: 8px; cursor: pointer; -webkit-user-select: none; user-select: none; }
   .toggles input { width: 22px; height: 22px; cursor: pointer; }
   #show1 { accent-color: var(--red); }
   #show2 { accent-color: var(--blue); }
@@ -78,9 +81,15 @@
   .math { font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", "Noto Serif", "Times New Roman", serif; font-size: 1.18em; font-weight: 400; }
   .math sub { font-size: 0.7em; }
 
+  /* móvil: gráfico temporal arriba y diagrama fasorial debajo; escritorio: lado a lado */
   .plots { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 8px; }
-  @media (min-width: 760px) { .plots { grid-template-columns: 3fr 2fr; } }
-  .plot { background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+  @media (min-width: 760px) { .plots { grid-template-columns: 3fr 2fr; align-items: start; } }
+  .plot { position: relative; background: #fff; border: 1px solid var(--line); border-radius: 8px; }
+  .pq { position: absolute; top: 5px; left: 8px; display: flex; gap: 14px; font-weight: 700; font-size: 0.9rem; }
+  .pq label { display: flex; align-items: center; gap: 5px; cursor: pointer; -webkit-user-select: none; user-select: none; }
+  .pq input { width: 20px; height: 20px; cursor: pointer; }
+  .tq { color: var(--orange); }  #showQ { accent-color: var(--orange); }
+  .tp { color: var(--green); }   #showP { accent-color: var(--green); }
   .plot canvas { display: block; width: 100%; touch-action: none; }
 
   .ref-control { padding: 4px 16px 14px; text-align: center; }
@@ -89,8 +98,8 @@
   .ref-value { font-family: ui-monospace, "Courier New", monospace; font-weight: 700; color: var(--ghost-ink); }
   .ref-control.locked { opacity: 0.45; }
 
-  .help-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; padding: 16px; }
-  .help-content { background: #fff; border-radius: 10px; max-width: 620px; margin: 0 auto; max-height: calc(100vh - 32px); overflow-y: auto; }
+  .help-modal { display: none; position: fixed; top: 0; right: 0; bottom: 0; left: 0; background: rgba(0,0,0,0.6); z-index: 1000; padding: 16px; }
+  .help-content { background: #fff; border-radius: 10px; max-width: 640px; margin: 0 auto; max-height: calc(100vh - 32px); overflow-y: auto; }
   .help-header {
     position: sticky; top: 0; background: #2c3e50; color: #fff; padding: 10px 16px;
     display: flex; justify-content: space-between; align-items: center;
@@ -101,6 +110,7 @@
   .help-body h3 { margin: 14px 0 6px; font-size: 1rem; }
   .help-body ul { padding-left: 20px; }
   .help-body li { margin: 3px 0; }
+  .help-body .eq { text-align: center; font-weight: 700; margin: 6px 0; }
 </style>
 </head>
 <body>
@@ -113,18 +123,24 @@
       <button role="menuitem" data-set="eu"><span class="code">EU</span>Euskara</button>
     </div>
     <h1><span data-lang="en">AC signals and phasors</span><span data-lang="es">Señales AC y fasores</span><span data-lang="eu">AC seinaleak eta fasoreak</span></h1>
-    <button class="help-btn" id="helpBtn" aria-label="Ayuda">?</button>
+    <button class="help-btn" id="helpBtn" aria-label="Help">?</button>
   </div>
 
   <div class="toggles">
-    <label class="t1"><input type="checkbox" id="show1" checked> <span class="math"><i>v</i><sub>1</sub>(<i>t</i>)</span></label>
-    <label class="t2"><input type="checkbox" id="show2" checked> <span class="math"><i>v</i><sub>2</sub>(<i>t</i>)</span></label>
+    <label class="t1"><input type="checkbox" id="show1" checked> <span class="math"><i>v</i>(<i>t</i>)</span></label>
+    <label class="t2"><input type="checkbox" id="show2" checked> <span class="math"><i>i</i>(<i>t</i>)</span></label>
     <label class="t0"><input type="checkbox" id="lockT" checked> <span>Lock <span class="math"><i>t</i></span></span></label>
   </div>
 
   <div class="plots">
     <div class="plot" id="timeBox"><canvas id="timeCanvas"></canvas></div>
-    <div class="plot" id="phasorBox"><canvas id="phasorCanvas"></canvas></div>
+    <div class="plot" id="phBox">
+      <canvas id="phCanvas"></canvas>
+      <div class="pq">
+        <label class="tq"><input type="checkbox" id="showQ"> <span><span class="math"><i>Q</i></span><span id="valQ"></span></span></label>
+        <label class="tp"><input type="checkbox" id="showP"> <span><span class="math"><i>P</i></span><span id="valP"></span></span></label>
+      </div>
+    </div>
   </div>
 
   <div class="ref-control locked" id="refControl">
@@ -137,49 +153,77 @@
   <div class="help-content">
     <div class="help-header">
       <h2><span data-lang="en">Help - AC signals and phasors</span><span data-lang="es">Ayuda - Señales AC y fasores</span><span data-lang="eu">Laguntza - AC seinaleak eta fasoreak</span></h2>
-      <button class="close-btn" id="closeBtn" aria-label="Cerrar">×</button>
+      <button class="close-btn" id="closeBtn" aria-label="Close">×</button>
     </div>
+
+    <!-- ===================== ENGLISH ===================== -->
     <div class="help-body" data-lang="en" lang="en">
       <h3>Authorship</h3>
       <p><strong>Authors:</strong> G. Agirre &amp; Claude (Anthropic)</p>
       <p><strong>Institution:</strong> EHU</p>
       <p><strong>Course:</strong> Fundamentals of Electrical Technology</p>
-      <p><strong>Version:</strong> 2.0 - November 2026</p>
+      <p><strong>Version:</strong> 3.0 - November 2026</p>
 
       <h3>Key concept</h3>
-      <p>The argument of a phasor is not an intrinsic property of the signal: it depends on the choice of time origin. This tool explores precisely that effect.</p>
+      <p>The argument of a phasor is not an intrinsic property of a signal: it depends on the choice of time origin. What does not depend on that choice is the phase difference between voltage and current and, with it, the powers. This tool explores precisely that effect.</p>
+
+      <h3>Signals and phasors</h3>
+      <p>v(t) = Vₘ·cos(ωt + ψ) and i(t) = Iₘ·cos(ωt + θ), with ω = 2 rad/s. Phasors are given as rms values in polar form: V = (Vₘ/√2) ∠ ψ and I = (Iₘ/√2) ∠ θ. The phase difference is φ = ψ − θ.</p>
+      <p>Generator convention: S = V·I* = P + jQ is the complex power delivered by the element.</p>
+      <p>At start-up: Vₘ = 4 V, ψ = 30°, Iₘ = 3 A and θ = −30°, so φ = 60°: the element delivers P = 3.00 W and Q = 5.20 var, as when feeding an inductive load.</p>
 
       <h3>Two-step transformation</h3>
       <p><strong>1. Change of time origin:</strong> t → t' = t − t₁</p>
-      <p><strong>2. This implies a change in the initial phase:</strong> φ → φ' = φ + ωt₁</p>
-      <p>Both steps can be read in the identity:</p>
-      <p style="text-align:center;"><strong>ωt + φ = ω(t − t₁) + (φ + ωt₁) = ωt' + φ'</strong></p>
-      <p>The signals are v(t) = A·cos(ωt + φ), where φ is the initial phase with respect to the original time origin (t = 0), and ω = 2 rad/s. With respect to the chosen origin, v = A·cos(ωt' + φ'). Phasors are given as rms values in polar form: (A/√2) ∠ φ'.</p>
+      <p><strong>2. This implies a change in the initial phases:</strong> ψ → ψ' = ψ + ωt₁ and θ → θ' = θ + ωt₁</p>
+      <p>Both steps can be read in the identity (likewise for θ):</p>
+      <p class="eq">ωt + ψ = ω(t − t₁) + (ψ + ωt₁) = ωt' + ψ'</p>
+      <p>Consequence:</p>
+      <p class="eq">φ' = ψ' − θ' = ψ − θ = φ</p>
+      <p>Neither the phase difference nor the powers depend on the time origin.</p>
 
       <h3>What you see</h3>
       <ul>
         <li>The vertical axis of the time plot and the positive horizontal semi-axis of the phasor diagram always represent the chosen time origin (t' = 0).</li>
-        <li>When ωt₁ changes, the curves shift ωt₁ to the left and the whole phasor diagram rotates ωt₁ counterclockwise, like a rigid body: magnitudes and the phase difference between the signals do not change, only the arguments do.</li>
+        <li>When ωt₁ changes, the curves shift ωt₁ to the left and the whole phasor diagram rotates ωt₁ counterclockwise, like a rigid body: magnitudes, φ and the areas (P and Q) do not change, only the arguments do.</li>
+        <li>With both signals shown, φ = ψ − θ appears at the top right of the phasor diagram, and an arc marks it between I and V.</li>
         <li>The faint «t = 0» mark shows where the original time origin has ended up.</li>
         <li>The time axis uses periodic boundary conditions: one period is shown, and whatever leaves one edge re-enters at the other, as on an unrolled cylinder.</li>
       </ul>
 
+      <h3>Powers as areas</h3>
+      <ul>
+        <li>The complex power and its two parts:</li>
+      </ul>
+      <p class="eq">S = P + jQ = V·I*</p>
+      <p class="eq">Q = Im(V·I*) = |V|·|I|·sin(ψ − θ)</p>
+      <p class="eq">P = Re(V·I*) = Im(V·(−jI)*) = |V|·|I|·cos(ψ − θ)</p>
+      <ul>
+        <li>Im(A·B*) is the signed area of the parallelogram spanned by B and A (positive when turning from B to A counterclockwise). So Q is the signed area of (I, V), and P that of (−jI, V): one single rule for both powers, sign included.</li>
+        <li><strong>Q checkbox:</strong> shows the parallelogram spanned by I and V (orange), of area |Q|.</li>
+        <li><strong>P checkbox:</strong> shows I rotated −90° as an auxiliary phasor (−jI, dotted) and the parallelogram spanned by −jI and V (green), of area |P|.</li>
+        <li>Both can be shown at once; the two parallelograms share the side V.</li>
+        <li>The sign is given by the value shown; the parallelogram of a negative power is hatched.</li>
+        <li>The area on screen equals the power times a drawing constant, the same for both: areas can be compared, but not measured in watts. Read the value shown.</li>
+        <li>A rotation does not change areas: that is why P and Q are invariant under a change of time origin.</li>
+      </ul>
+
       <h3>Details worth noticing</h3>
-      <p><strong>The bridge between both figures.</strong> The hollow dots on the vertical axis mark the value of each signal at t' = 0, that is, A·cos φ'. This is √2 times the projection of the phasor onto the horizontal semi-axis: v(t' = 0) = √2·Re(V).</p>
+      <p><strong>The bridge between the figures.</strong> The hollow dots on the vertical axis mark the value of each signal at t' = 0: v(t' = 0) = √2·Re(V) and i(t' = 0) = √2·Re(I).</p>
       <p><strong>Same signal, two languages.</strong> Touching a curve also highlights its phasor, and vice versa, because they are the same signal described in time and in the complex plane.</p>
       <p><strong>The grabbed point follows your finger.</strong> A single gesture can change phase and amplitude at once. Near a zero crossing, the amplitude sensitivity is deliberately limited so that it does not run away.</p>
       <p><strong>The cylinder seam.</strong> The dashed lines at the edges, at −180° and 180°, are the same generatrix. That is why angles wrap around without limits while dragging.</p>
-      <p><strong>Diagram scale.</strong> The circles mark 1, 2 and 3 V rms.</p>
+      <p><strong>Scales.</strong> Voltage and current share the same numeric scale: in the time plot, volts on the left and amperes on the right; in the diagram, the circles mark every 1 V or A rms. The diagram scale is chosen so that both parallelograms always fit.</p>
 
       <h3>How to use</h3>
       <ul>
-        <li><strong>v₁(t) and v₂(t) checkboxes:</strong> show or hide each signal; when hidden, its curve and phasor disappear and it no longer responds to touch.</li>
-        <li><strong>Dragging a curve:</strong> horizontally changes its phase; vertically, its amplitude.</li>
-        <li><strong>Dragging a phasor tip:</strong> changes its phase and amplitude.</li>
+        <li><strong>v(t) and i(t) checkboxes:</strong> show or hide each signal; when hidden, its curve and phasors disappear and it no longer responds to touch. With either one hidden, the power parallelograms disappear too.</li>
+        <li><strong>Dragging a curve:</strong> horizontally changes its initial phase; vertically, its amplitude.</li>
+        <li><strong>Dragging a phasor tip</strong> changes its initial phase and amplitude; dragging the tip of −jI moves I.</li>
+        <li><strong>Q and P checkboxes</strong> (top of the phasor diagram): show each power as an area, with its value. Each value appears only while its checkbox is checked. Both start unchecked.</li>
         <li><strong>Lock t checkbox:</strong> while checked (the tool starts this way), the time origin cannot be moved and only the signals change. Uncheck it to explore the change of origin.</li>
         <li><strong>Changing the time origin</strong> (with Lock t unchecked): with the bottom slider, by dragging the background of the time plot, or by rotating the phasor diagram while touching away from the tips.</li>
         <li>If several elements are near your finger, the closest one is taken; phasor tips have priority.</li>
-        <li>Phases move in 5° steps and amplitudes in 0.1 V steps. Everything works the same with finger or mouse; with a mouse, the element under the cursor is highlighted before you grab it.</li>
+        <li>Phases move in 5° steps and amplitudes in 0.1 steps. Everything works the same with finger or mouse; with a mouse, the element under the cursor is highlighted before you grab it.</li>
         <li><strong>Language:</strong> the button on the left of the title bar switches between English, Spanish and Basque.</li>
         <li><strong>Keyboard:</strong> H opens this help and Esc closes it.</li>
       </ul>
@@ -187,47 +231,75 @@
       <h3>Development</h3>
       <p><strong>Technology:</strong> HTML5 Canvas + JavaScript, in a single file that works offline.</p>
     </div>
-    <div class="help-body" data-lang="es">
+
+    <!-- ===================== ESPAÑOL ===================== -->
+    <div class="help-body" data-lang="es" lang="es">
       <h3>Autoría</h3>
       <p><strong>Autores:</strong> G. Agirre &amp; Claude (Anthropic)</p>
       <p><strong>Institución:</strong> EHU</p>
       <p><strong>Asignatura:</strong> Fundamentos de Tecnología Eléctrica</p>
-      <p><strong>Versión:</strong> 2.0 - Noviembre 2026</p>
+      <p><strong>Versión:</strong> 3.0 - Noviembre 2026</p>
 
       <h3>Concepto fundamental</h3>
-      <p>El argumento de un fasor no es una propiedad intrínseca de la señal: depende de la elección del origen de tiempos. Esta herramienta explora precisamente ese efecto.</p>
+      <p>El argumento de un fasor no es una propiedad intrínseca de la señal: depende de la elección del origen de tiempos. Lo que no depende de esa elección es el desfase entre tensión y corriente y, con él, las potencias. Esta herramienta explora precisamente ese efecto.</p>
+
+      <h3>Señales y fasores</h3>
+      <p>v(t) = Vₘ·cos(ωt + ψ) e i(t) = Iₘ·cos(ωt + θ), con ω = 2 rad/s. Los fasores se expresan en valor eficaz y en forma polar: V = (Vₘ/√2) ∠ ψ e I = (Iₘ/√2) ∠ θ. El desfase es φ = ψ − θ.</p>
+      <p>Convenio de generador: S = V·I* = P + jQ es la potencia compleja que entrega el elemento.</p>
+      <p>Al arrancar: Vₘ = 4 V, ψ = 30°, Iₘ = 3 A y θ = −30°, de modo que φ = 60°: el elemento entrega P = 3.00 W y Q = 5.20 var, como al alimentar una carga inductiva.</p>
 
       <h3>Transformación en dos pasos</h3>
       <p><strong>1. Cambio de origen de tiempos:</strong> t → t' = t − t₁</p>
-      <p><strong>2. Esto implica un cambio en la fase inicial:</strong> φ → φ' = φ + ωt₁</p>
-      <p>Ambos pasos se leen en la identidad:</p>
-      <p style="text-align:center;"><strong>ωt + φ = ω(t − t₁) + (φ + ωt₁) = ωt' + φ'</strong></p>
-      <p>Las señales son v(t) = A·cos(ωt + φ), donde φ es la fase inicial respecto al origen de tiempos inicial (t = 0), con ω = 2 rad/s. Respecto al origen elegido, v = A·cos(ωt' + φ'). Los fasores se expresan en valor eficaz y en forma polar: (A/√2) ∠ φ'.</p>
+      <p><strong>2. Esto implica un cambio en las fases iniciales:</strong> ψ → ψ' = ψ + ωt₁ y θ → θ' = θ + ωt₁</p>
+      <p>Ambos pasos se leen en la identidad (y lo mismo para θ):</p>
+      <p class="eq">ωt + ψ = ω(t − t₁) + (ψ + ωt₁) = ωt' + ψ'</p>
+      <p>Consecuencia:</p>
+      <p class="eq">φ' = ψ' − θ' = ψ − θ = φ</p>
+      <p>Ni el desfase ni las potencias dependen del origen de tiempos.</p>
 
       <h3>Qué se ve</h3>
       <ul>
-        <li>El eje vertical del gráfico temporal y el semieje horizontal del diagrama fasorial son siempre el origen de tiempos elegido (t' = 0).</li>
-        <li>Al cambiar ωt₁, las curvas se desplazan ωt₁ hacia la izquierda y todo el diagrama fasorial gira ωt₁ en sentido antihorario, como un sólido rígido: los módulos y el desfase entre señales no cambian, solo los argumentos.</li>
+        <li>El eje vertical del gráfico temporal y el semieje horizontal positivo del diagrama fasorial son siempre el origen de tiempos elegido (t' = 0).</li>
+        <li>Al cambiar ωt₁, las curvas se desplazan ωt₁ hacia la izquierda y todo el diagrama fasorial gira ωt₁ en sentido antihorario, como un sólido rígido: los módulos, φ y las áreas (P y Q) no cambian, solo los argumentos.</li>
+        <li>Con las dos señales visibles, φ = ψ − θ aparece arriba a la derecha del diagrama fasorial, y un arco lo marca entre I y V.</li>
         <li>La marca tenue «t = 0» señala dónde ha quedado el origen de tiempos inicial.</li>
         <li>El eje de tiempos se trata con condiciones periódicas: se muestra un periodo y lo que sale por un borde entra por el otro, como en un cilindro desenrollado.</li>
       </ul>
 
+      <h3>Las potencias como áreas</h3>
+      <ul>
+        <li>La potencia compleja y sus dos partes:</li>
+      </ul>
+      <p class="eq">S = P + jQ = V·I*</p>
+      <p class="eq">Q = Im(V·I*) = |V|·|I|·sen(ψ − θ)</p>
+      <p class="eq">P = Re(V·I*) = Im(V·(−jI)*) = |V|·|I|·cos(ψ − θ)</p>
+      <ul>
+        <li>Im(A·B*) es el área con signo del paralelogramo que forman B y A (positiva al girar de B hacia A en sentido antihorario). Así, Q es el área con signo de (I, V), y P la de (−jI, V): una sola regla para las dos potencias, signo incluido.</li>
+        <li><strong>Casilla Q:</strong> muestra el paralelogramo que forman I y V (naranja), de área |Q|.</li>
+        <li><strong>Casilla P:</strong> muestra I girado −90° como fasor auxiliar (−jI, punteado) y el paralelogramo que forman −jI y V (verde), de área |P|.</li>
+        <li>Se pueden mostrar los dos a la vez; los dos paralelogramos comparten el lado V.</li>
+        <li>El signo lo da el valor que se muestra; el paralelogramo de una potencia negativa aparece rayado.</li>
+        <li>El área en pantalla es la potencia multiplicada por una constante de dibujo, la misma para las dos: las áreas se pueden comparar, pero no medir en vatios. Lee el valor que se muestra.</li>
+        <li>Un giro no cambia las áreas: por eso P y Q son invariantes frente al cambio de origen de tiempos.</li>
+      </ul>
+
       <h3>Detalles que conviene observar</h3>
-      <p><strong>El puente entre las dos figuras.</strong> Los puntos huecos sobre el eje vertical marcan el valor de cada señal en t' = 0, que vale A·cos φ'. Es √2 veces la proyección del fasor sobre el semieje horizontal: v(t' = 0) = √2·Re(V).</p>
+      <p><strong>El puente entre las figuras.</strong> Los puntos huecos sobre el eje vertical marcan el valor de cada señal en t' = 0: v(t' = 0) = √2·Re(V) e i(t' = 0) = √2·Re(I).</p>
       <p><strong>Misma señal, dos lenguajes.</strong> Al tocar una curva se resalta también su fasor, y al revés, porque son la misma señal descrita en el tiempo y en el plano complejo.</p>
       <p><strong>El punto agarrado sigue al dedo.</strong> Un solo gesto puede cambiar fase y amplitud a la vez. Cerca de un paso por cero la sensibilidad de la amplitud se limita a propósito, para que no se dispare.</p>
       <p><strong>La costura del cilindro.</strong> Las líneas discontinuas de los bordes, en −180° y 180°, son la misma generatriz. Por eso los ángulos dan vueltas sin topes al arrastrar.</p>
-      <p><strong>Escala del diagrama.</strong> Los círculos marcan 1, 2 y 3 V eficaces.</p>
+      <p><strong>Escalas.</strong> Tensión y corriente comparten la misma escala numérica: en el gráfico temporal, voltios a la izquierda y amperios a la derecha; en el diagrama, los círculos marcan cada 1 V o A eficaz. La escala del diagrama está elegida para que los dos paralelogramos quepan siempre.</p>
 
       <h3>Uso</h3>
       <ul>
-        <li><strong>Casillas v₁(t) y v₂(t):</strong> muestran u ocultan cada señal; al ocultarla desaparecen su curva y su fasor, y deja de responder al tacto.</li>
-        <li><strong>Arrastrar una curva:</strong> en horizontal cambia su fase; en vertical, su amplitud.</li>
-        <li><strong>Arrastrar la punta de un fasor:</strong> cambia su fase y su amplitud.</li>
+        <li><strong>Casillas v(t) e i(t):</strong> muestran u ocultan cada señal; al ocultarla desaparecen su curva y sus fasores, y deja de responder al tacto. Si se oculta cualquiera de las dos, desaparecen también los paralelogramos de potencia.</li>
+        <li><strong>Arrastrar una curva:</strong> en horizontal cambia su fase inicial; en vertical, su amplitud.</li>
+        <li><strong>Arrastrar la punta de un fasor</strong> cambia su fase inicial y su amplitud; arrastrar la punta de −jI mueve I.</li>
+        <li><strong>Casillas Q y P</strong> (arriba del diagrama fasorial): muestran cada potencia como un área, con su valor. Cada valor aparece solo mientras su casilla está marcada. Las dos arrancan desmarcadas.</li>
         <li><strong>Casilla Lock t:</strong> mientras está marcada (así arranca la herramienta), el origen de tiempos no se puede mover y solo se modifican las señales. Desmárcala para explorar el cambio de origen.</li>
         <li><strong>Cambiar el origen de tiempos</strong> (con Lock t desmarcada): con el deslizador gris, arrastrando el fondo del gráfico temporal o girando el diagrama fasorial tocando fuera de las puntas.</li>
         <li>Si varios elementos quedan cerca del dedo, se coge el más próximo; las puntas de los fasores tienen prioridad.</li>
-        <li>Las fases avanzan en pasos de 5° y las amplitudes en pasos de 0.1 V. Todo funciona igual con el dedo o con el ratón; con ratón, el elemento bajo el cursor se resalta antes de cogerlo.</li>
+        <li>Las fases avanzan en pasos de 5° y las amplitudes en pasos de 0.1. Todo funciona igual con el dedo o con el ratón; con ratón, el elemento bajo el cursor se resalta antes de cogerlo.</li>
         <li><strong>Idioma:</strong> el botón de la izquierda de la barra de título cambia entre inglés, castellano y euskara.</li>
         <li><strong>Teclado:</strong> H abre esta ayuda y Esc la cierra.</li>
       </ul>
@@ -235,47 +307,75 @@
       <h3>Desarrollo</h3>
       <p><strong>Tecnología:</strong> HTML5 Canvas + JavaScript, en un único fichero que funciona sin conexión.</p>
     </div>
+
+    <!-- ===================== EUSKARA ===================== -->
     <div class="help-body" data-lang="eu" lang="eu">
       <h3>Egiletza</h3>
       <p><strong>Egileak:</strong> G. Agirre &amp; Claude (Anthropic)</p>
       <p><strong>Erakundea:</strong> EHU</p>
       <p><strong>Irakasgaia:</strong> Teknologia Elektrikoaren Oinarriak</p>
-      <p><strong>Bertsioa:</strong> 2.0 - 2026ko azaroa</p>
+      <p><strong>Bertsioa:</strong> 3.0 - 2026ko azaroa</p>
 
       <h3>Oinarrizko kontzeptua</h3>
-      <p>Fasore baten argumentua ez da seinalearen berezko propietatea: denbora-jatorria aukeratzearen araberakoa da. Tresna honek efektu hori bera aztertzen du.</p>
+      <p>Fasore baten argumentua ez da seinalearen berezko propietatea: denbora-jatorria aukeratzearen araberakoa da. Aukeraketa horren menpe ez dagoena tentsioaren eta korrontearen arteko desfasea da, eta, harekin batera, potentziak. Tresna honek efektu hori bera aztertzen du.</p>
+
+      <h3>Seinaleak eta fasoreak</h3>
+      <p>v(t) = Vₘ·cos(ωt + ψ) eta i(t) = Iₘ·cos(ωt + θ), ω = 2 rad/s izanik. Fasoreak balio efikazean eta forma polarrean adierazten dira: V = (Vₘ/√2) ∠ ψ eta I = (Iₘ/√2) ∠ θ. Desfasea φ = ψ − θ da.</p>
+      <p>Sorgailu-hitzarmena: S = V·I* = P + jQ elementuak ematen duen potentzia konplexua da.</p>
+      <p>Abiatzean: Vₘ = 4 V, ψ = 30°, Iₘ = 3 A eta θ = −30°; beraz, φ = 60°: elementuak P = 3.00 W eta Q = 5.20 var ematen ditu, karga induktibo bat elikatzean bezala.</p>
 
       <h3>Bi urratseko transformazioa</h3>
       <p><strong>1. Denbora-jatorriaren aldaketa:</strong> t → t' = t − t₁</p>
-      <p><strong>2. Horrek hasierako fasearen aldaketa dakar:</strong> φ → φ' = φ + ωt₁</p>
-      <p>Bi urratsak identitate honetan irakurtzen dira:</p>
-      <p style="text-align:center;"><strong>ωt + φ = ω(t − t₁) + (φ + ωt₁) = ωt' + φ'</strong></p>
-      <p>Seinaleak v(t) = A·cos(ωt + φ) dira, non φ hasierako denbora-jatorriarekiko (t = 0) hasierako fasea den, eta ω = 2 rad/s. Aukeratutako jatorriarekiko, v = A·cos(ωt' + φ'). Fasoreak balio efikazean (rms) eta forma polarrean adierazten dira: (A/√2) ∠ φ'.</p>
+      <p><strong>2. Horrek hasierako faseen aldaketa dakar:</strong> ψ → ψ' = ψ + ωt₁ eta θ → θ' = θ + ωt₁</p>
+      <p>Bi urratsak identitate honetan irakurtzen dira (eta berdin θ-rentzat):</p>
+      <p class="eq">ωt + ψ = ω(t − t₁) + (ψ + ωt₁) = ωt' + ψ'</p>
+      <p>Ondorioa:</p>
+      <p class="eq">φ' = ψ' − θ' = ψ − θ = φ</p>
+      <p>Ez desfasea ez potentziak ez daude denbora-jatorriaren menpe.</p>
 
       <h3>Zer ikusten da</h3>
       <ul>
-        <li>Denbora-grafikoaren ardatz bertikala eta diagrama fasorialaren ardatzerdi horizontala aukeratutako denbora-jatorria dira beti (t' = 0).</li>
-        <li>ωt₁ aldatzean, kurbak ωt₁ lerratzen dira ezkerrerantz, eta diagrama fasorial osoa ωt₁ biratzen da erlojuaren orratzen aurkako noranzkoan, solido zurrun baten antzera: moduluak eta seinaleen arteko desfasea ez dira aldatzen, argumentuak bakarrik.</li>
+        <li>Denbora-grafikoaren ardatz bertikala eta diagrama fasorialaren ardatzerdi horizontal positiboa aukeratutako denbora-jatorria dira beti (t' = 0).</li>
+        <li>ωt₁ aldatzean, kurbak ωt₁ lerratzen dira ezkerrerantz, eta diagrama fasorial osoa ωt₁ biratzen da erlojuaren orratzen aurkako noranzkoan, solido zurrun baten antzera: moduluak, φ eta azalerak (P eta Q) ez dira aldatzen, argumentuak bakarrik.</li>
+        <li>Bi seinaleak ikusgai daudenean, φ = ψ − θ diagrama fasorialaren goiko eskuinaldean agertzen da, eta arku batek markatzen du I-ren eta V-ren artean.</li>
         <li>«t = 0» marka ahulak hasierako denbora-jatorria non geratu den adierazten du.</li>
         <li>Denbora-ardatzari baldintza periodikoak aplikatzen zaizkio: periodo bat erakusten da, eta ertz batetik irteten dena bestetik sartzen da, zilindro zabaldu batean bezala.</li>
       </ul>
 
+      <h3>Potentziak azalera gisa</h3>
+      <ul>
+        <li>Potentzia konplexua eta bere bi zatiak:</li>
+      </ul>
+      <p class="eq">S = P + jQ = V·I*</p>
+      <p class="eq">Q = Im(V·I*) = |V|·|I|·sin(ψ − θ)</p>
+      <p class="eq">P = Re(V·I*) = Im(V·(−jI)*) = |V|·|I|·cos(ψ − θ)</p>
+      <ul>
+        <li>Im(A·B*) B-k eta A-k osatzen duten paralelogramoaren zeinudun azalera da (positiboa B-tik A-ra erlojuaren orratzen aurkako noranzkoan biratzean). Beraz, Q (I, V) paralelogramoaren zeinudun azalera da, eta P (−jI, V) paralelogramoarena: arau bakarra bi potentzientzat, zeinua barne.</li>
+        <li><strong>Q kontrol-laukia:</strong> I-k eta V-k osatzen duten paralelogramoa (laranja) erakusten du, |Q| azalerakoa.</li>
+        <li><strong>P kontrol-laukia:</strong> I −90° biratuta erakusten du fasore laguntzaile gisa (−jI, puntukatuta), eta −jI-k eta V-k osatzen duten paralelogramoa (berdea), |P| azalerakoa.</li>
+        <li>Biak aldi berean erakuts daitezke; bi paralelogramoek V aldea partekatzen dute.</li>
+        <li>Zeinua erakusten den balioak ematen du; potentzia negatiboaren paralelogramoa marraduna agertzen da.</li>
+        <li>Pantailako azalera potentzia bider marrazketa-konstante bat da, berdina bientzat: azalerak konpara daitezke, baina ezin dira watt-etan neurtu. Irakurri erakusten den balioa.</li>
+        <li>Biraketa batek ez ditu azalerak aldatzen: horregatik dira P eta Q aldaezinak denbora-jatorria aldatzean.</li>
+      </ul>
+
       <h3>Erreparatzeko xehetasunak</h3>
-      <p><strong>Bi irudien arteko zubia.</strong> Ardatz bertikaleko puntu hutsek seinale bakoitzak t' = 0 unean duen balioa adierazten dute, hau da, A·cos φ'. Balio hori fasoreak ardatzerdi horizontalaren gainean duen proiekzioa bider √2 da: v(t' = 0) = √2·Re(V).</p>
+      <p><strong>Irudien arteko zubia.</strong> Ardatz bertikaleko puntu hutsek seinale bakoitzak t' = 0 unean duen balioa adierazten dute: v(t' = 0) = √2·Re(V) eta i(t' = 0) = √2·Re(I).</p>
       <p><strong>Seinale bera, bi hizkuntza.</strong> Kurba bat ukitzean bere fasorea ere nabarmentzen da, eta alderantziz, seinale bera baitira, denboran eta plano konplexuan deskribatuta.</p>
       <p><strong>Heldutako puntuak hatzari jarraitzen dio.</strong> Keinu bakar batek fasea eta anplitudea aldi berean alda ditzake. Zeroko igarotze batetik gertu, anplitudearen sentikortasuna nahita mugatzen da, gehiegi hazi ez dadin.</p>
       <p><strong>Zilindroaren jostura.</strong> Ertzetako lerro etenak, −180° eta 180° puntuetan, sortzaile bera dira. Horregatik angeluek mugarik gabe ematen dituzte buelta arrastatzean.</p>
-      <p><strong>Diagramaren eskala.</strong> Zirkuluek 1, 2 eta 3 V efikaz markatzen dituzte.</p>
+      <p><strong>Eskalak.</strong> Tentsioak eta korronteak zenbakizko eskala bera dute: denbora-grafikoan, voltak ezkerrean eta anpereak eskuinean; diagraman, zirkuluek V edo A efikaz bakoitza markatzen dute. Diagramaren eskala bi paralelogramoak beti sartzeko moduan aukeratuta dago.</p>
 
       <h3>Erabilera</h3>
       <ul>
-        <li><strong>v₁(t) eta v₂(t) kontrol-laukiak:</strong> seinale bakoitza erakutsi edo ezkutatzen dute; ezkutatzean, bere kurba eta fasorea desagertzen dira, eta ukimenari erantzuteari uzten dio.</li>
-        <li><strong>Kurba bat arrastatzea:</strong> horizontalean bere fasea aldatzen da; bertikalean, bere anplitudea.</li>
-        <li><strong>Fasore baten punta arrastatzea:</strong> bere fasea eta anplitudea aldatzen dira.</li>
+        <li><strong>v(t) eta i(t) kontrol-laukiak:</strong> seinale bakoitza erakutsi edo ezkutatzen dute; ezkutatzean, bere kurba eta fasoreak desagertzen dira, eta ukimenari erantzuteari uzten dio. Bietako bat ezkutatzean, potentzien paralelogramoak ere desagertzen dira.</li>
+        <li><strong>Kurba bat arrastatzea:</strong> horizontalean bere hasierako fasea aldatzen da; bertikalean, bere anplitudea.</li>
+        <li><strong>Fasore baten punta arrastatzea:</strong> bere hasierako fasea eta anplitudea aldatzen dira; −jI-ren punta arrastatzean I mugitzen da.</li>
+        <li><strong>Q eta P kontrol-laukiak</strong> (diagrama fasorialaren goialdean): potentzia bakoitza azalera gisa erakusten dute, bere balioarekin. Balio bakoitza bere kontrol-laukia markatuta dagoen bitartean bakarrik agertzen da. Biak desmarkatuta abiatzen dira.</li>
         <li><strong>Lock t kontrol-laukia:</strong> markatuta dagoen bitartean (horrela abiatzen da tresna), denbora-jatorria ezin da mugitu, eta seinaleak bakarrik aldatzen dira. Desmarkatu jatorri-aldaketa aztertzeko.</li>
         <li><strong>Denbora-jatorria aldatzea</strong> (Lock t desmarkatuta): beheko barrarekin (irristailua), denbora-grafikoaren hondoa arrastatuz, edo diagrama fasoriala biratuz, punten kanpoaldean ukituta.</li>
         <li>Hainbat elementu hatzetik gertu badaude, hurbilena hartzen da; fasoreen puntek lehentasuna dute.</li>
-        <li>Faseak 5°-ko urratsetan aldatzen dira, eta anplitudeak 0.1 V-ko urratsetan. Dena berdin dabil hatzarekin edo saguarekin; saguarekin, kurtsorearen azpiko elementua nabarmendu egiten da hartu aurretik.</li>
+        <li>Faseak 5°-ko urratsetan aldatzen dira, eta anplitudeak 0.1eko urratsetan. Dena berdin dabil hatzarekin edo saguarekin; saguarekin, kurtsorearen azpiko elementua nabarmendu egiten da hartu aurretik.</li>
         <li><strong>Hizkuntza:</strong> izenburu-barraren ezkerreko botoiak ingelesa, gaztelania eta euskara txandakatzen ditu.</li>
         <li><strong>Teklatua:</strong> H teklak laguntza hau irekitzen du, eta Esc teklak ixten.</li>
       </ul>
@@ -296,13 +396,16 @@
   const A_MIN = 0.5, A_MAX = 5;
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const COL = {
-    1: css('--red'), 2: css('--blue'),
+    1: css('--red'), 2: css('--blue'), orange: css('--orange'), green: css('--green'),
     ink: css('--ink'), muted: css('--muted'), grid: '#e8ebee', ghost: css('--ghost')
   };
+  const FILL = { Q: 'rgba(239,122,18,0.24)', P: 'rgba(34,146,74,0.24)' };
+  const UNIT = { 1: 'V', 2: 'A' };
 
-  // phi = fase inicial respecto al origen de tiempos inicial (t = 0)
-  // wt1 = origen de tiempos elegido; lo que se ve es phi' = phi + wt1
-  const state = { A1: 3.0, phi1: 0, A2: 4.0, phi2: -90, wt1: 0, show1: true, show2: true, lock: true };
+  // Señal 1 = v (fase psi), señal 2 = i (fase theta).
+  // phi1/phi2 son las fases respecto al origen inicial (t = 0); lo que se ve es phi' = phi + wt1.
+  // Valores iniciales: carga inductiva vista con convenio de generador (i retrasada 60° respecto a v).
+  const state = { A1: 4.0, phi1: 30, A2: 3.0, phi2: -30, wt1: 0, show1: true, show2: true, lock: true, showP: false, showQ: false };
   let drag = null, hover = null;
 
   const snap5 = a => Math.round(a / 5) * 5;
@@ -312,10 +415,19 @@
     if (n > 180) n -= 360;
     return n === 0 ? 0 : n;
   }
-  const fmtDeg = a => (a < 0 ? '−' + Math.abs(a) : String(a)) + '°';
-  const phiP = i => norm(state['phi' + i] + state.wt1);       // fase vista phi'
+  const minus = s => s.replace(/^-/, '−');
+  const fmtDeg = a => minus(String(a)) + '°';
+  const fmtNum = (x, d) => minus((Math.abs(x) < 0.005 ? 0 : x).toFixed(d));
+  const phiP = i => norm(state['phi' + i] + state.wt1);       // fase vista
   const visible = i => state['show' + i];
   const SIGNALS = () => [1, 2].filter(visible);
+  const bothVisible = () => state.show1 && state.show2;
+
+  // potencias (convenio de generador): S = V·I*, con V e I eficaces
+  function powers() {
+    const V = state.A1 / SQRT2, I = state.A2 / SQRT2, f = (state.phi1 - state.phi2) * DEG;
+    return { P: V * I * Math.cos(f), Q: V * I * Math.sin(f), phi: norm(state.phi1 - state.phi2) };
+  }
 
   // ---------- Canvas con nitidez en alta densidad ----------
   function makeView(canvas, aspect) {
@@ -332,12 +444,12 @@
     return v;
   }
   const mobile = () => window.innerWidth < 760;
-  const T = makeView(document.getElementById('timeCanvas'), () => (mobile() ? 0.62 : 0.55));
-  const P = makeView(document.getElementById('phasorCanvas'), () => (mobile() ? 0.78 : 0.825));
+  const T = makeView(document.getElementById('timeCanvas'), () => 0.62);
+  const D = makeView(document.getElementById('phCanvas'), () => (mobile() ? 0.92 : 0.95));
 
   // ---------- Geometría del gráfico temporal: un periodo, de -180° a 180° ----------
   const tg = {
-    padL: 30, padR: 10,
+    padL: 30, padR: 26,
     x0() { return this.padL; },
     x1() { return T.w - this.padR; },
     xOf(deg) { return this.x0() + (deg + 180) / 360 * (this.x1() - this.x0()); },
@@ -350,16 +462,23 @@
   const wave = (i, deg) => state['A' + i] * Math.cos((deg + phiP(i)) * DEG);
 
   // ---------- Geometría del diagrama fasorial ----------
-  const pg = {
-    cx() { return P.w / 2; },
-    cy() { return P.h / 2; },
-    R() { return Math.min(P.w, P.h) / 2 - 14; },
-    k() { return this.R() / (A_MAX / SQRT2); },
-    tip(i) {
-      const r = state['A' + i] / SQRT2 * this.k(), a = phiP(i) * DEG;
-      return { x: this.cx() + r * Math.cos(a), y: this.cy() - r * Math.sin(a) };
-    }
-  };
+  // Escala: el radio útil corresponde a 2·Amax/√2, de modo que V + I (vértice lejano
+  // de los paralelogramos) cabe siempre. j = true para el fasor auxiliar −jI (I girado −90°).
+  function geo() {
+    const top = 32;                                   // franja superior: casillas Q, P y φ
+    const cx = D.w / 2, cy = top + (D.h - top) / 2;
+    const R = Math.min(D.w, D.h - top) / 2 - 6;
+    const k = R / (2 * A_MAX / SQRT2);
+    return {
+      cx, cy, R, k,
+      ang: (i, j) => phiP(i) + (j ? -90 : 0),
+      tip(i, j) {
+        const r = state['A' + i] / SQRT2 * k, a = (phiP(i) + (j ? -90 : 0)) * DEG;
+        return { x: cx + r * Math.cos(a), y: cy - r * Math.sin(a) };
+      }
+    };
+  }
+  const showJI = () => state.showP && state.show2;
 
   // ---------- Dibujo: gráfico temporal ----------
   function drawTime() {
@@ -367,7 +486,6 @@
     const top = 6, bot = h - 16;
     c.clearRect(0, 0, T.w, h);
 
-    // rejilla
     c.lineWidth = 1; c.strokeStyle = COL.grid;
     for (let d = -90; d <= 90; d += 90) {
       const x = tg.xOf(d); c.beginPath(); c.moveTo(x, top); c.lineTo(x, bot); c.stroke();
@@ -376,7 +494,7 @@
       if (v === 0) continue;
       const y = tg.yOf(v); c.beginPath(); c.moveTo(x0, y); c.lineTo(x1, y); c.stroke();
     }
-    // costura del cilindro: los dos bordes son la misma generatriz
+    // costura del cilindro
     c.strokeStyle = COL.ghost; c.setLineDash([3, 4]);
     for (const x of [x0, x1]) { c.beginPath(); c.moveTo(x, top); c.lineTo(x, bot); c.stroke(); }
     c.setLineDash([]);
@@ -388,30 +506,35 @@
     c.lineWidth = 2.5;
     c.beginPath(); c.moveTo(xa, top); c.lineTo(xa, bot); c.stroke();
 
-    // marca del origen inicial t = 0, en ωt' = -ωt1 (con periodicidad)
+    // marca del origen inicial t = 0
     const xg = tg.xOf(norm(-state.wt1));
     const refActive = isTarget({ type: 'ref' });
     c.strokeStyle = COL.ghost; c.lineWidth = refActive ? 2.5 : 1.5; c.setLineDash([6, 5]);
     c.beginPath(); c.moveTo(xg, top); c.lineTo(xg, bot); c.stroke();
     c.setLineDash([]);
 
-    // etiquetas de ejes
-    c.fillStyle = COL.muted; c.font = '11px system-ui, sans-serif';
-    c.textBaseline = 'bottom';
+    // etiquetas: V a la izquierda, A a la derecha (misma escala numérica)
+    c.font = '11px system-ui, sans-serif';
+    c.fillStyle = COL.muted; c.textBaseline = 'bottom';
     for (const d of [-180, -90, 0, 90, 180]) {
       c.textAlign = d === 180 ? 'right' : (d === -180 ? 'left' : 'center');
-      c.fillText(d < 0 ? '−' + (-d) : String(d), tg.xOf(d), h - 2);
+      c.fillText(fmtNum(d, 0), tg.xOf(d), h - 2);
     }
-    c.textAlign = 'right'; c.textBaseline = 'middle';
-    for (const v of [-4, -2, 2, 4]) c.fillText(v < 0 ? '−' + (-v) : String(v), x0 - 4, tg.yOf(v));
-    c.textAlign = 'left'; c.textBaseline = 'top'; c.fillText('v/V', 2, 2);
-    c.textAlign = 'right'; c.fillText("ωt'/°", x1 - 2, 2);
+    c.textBaseline = 'middle';
+    for (const v of [-4, -2, 2, 4]) {
+      c.textAlign = 'right'; c.fillText(fmtNum(v, 0), x0 - 4, tg.yOf(v));
+      c.textAlign = 'left'; c.fillText(fmtNum(v, 0), x1 + 4, tg.yOf(v));
+    }
+    c.font = 'bold 11px system-ui, sans-serif'; c.textBaseline = 'top';
+    c.textAlign = 'left'; c.fillStyle = COL[1]; c.fillText('v/V', 2, 2);
+    c.textAlign = 'right'; c.fillStyle = COL[2]; c.fillText('i/A', T.w - 2, 2);
+    c.font = '11px system-ui, sans-serif'; c.fillStyle = COL.muted; c.textBaseline = 'bottom';
+    c.fillText("ωt'/°", x1 - 2, cy - 3);
 
-    // curvas (la que se arrastra, encima)
+    // curvas
     const sig = SIGNALS();
-    if (drag && drag.i && sig.length === 2 && drag.i === 1) sig.reverse();
+    if (drag && drag.i === 1 && sig.length === 2) sig.reverse();
     for (const i of sig) drawWave(c, i);
-    // valor de cada señal en t' = 0
     for (const i of sig) {
       const y = tg.yOf(wave(i, 0));
       c.fillStyle = '#fff'; c.strokeStyle = COL[i]; c.lineWidth = 2;
@@ -436,7 +559,7 @@
   }
 
   function tag(c, text, x, y, color, align, size) {
-    c.font = (size ? 'bold ' + size : 'bold 12px') + ' system-ui, sans-serif';
+    c.font = 'bold ' + (size || '12px') + ' system-ui, sans-serif';
     c.textAlign = align; c.textBaseline = 'middle';
     const tw = c.measureText(text).width;
     const bx = align === 'left' ? x - 2 : (align === 'right' ? x - tw - 2 : x - tw / 2 - 2);
@@ -445,75 +568,128 @@
     c.fillStyle = color; c.fillText(text, x, y);
   }
 
+  // patrón rayado para potencias negativas
+  const hatchCache = {};
+  function hatch(c, color) {
+    if (hatchCache[color]) return hatchCache[color];
+    const s = document.createElement('canvas'); s.width = s.height = 8;
+    const g = s.getContext('2d');
+    g.strokeStyle = color; g.lineWidth = 1.4;
+    g.beginPath(); g.moveTo(0, 8); g.lineTo(8, 0); g.moveTo(-2, 2); g.lineTo(2, -2); g.moveTo(6, 10); g.lineTo(10, 6); g.stroke();
+    return (hatchCache[color] = c.createPattern(s, 'repeat'));
+  }
+
   // ---------- Dibujo: diagrama fasorial ----------
-  function drawPhasor() {
-    const c = P.ctx, cx = pg.cx(), cy = pg.cy(), R = pg.R(), k = pg.k();
-    c.clearRect(0, 0, P.w, P.h);
+  function drawDiagram() {
+    const c = D.ctx, G = geo(), cx = G.cx, cy = G.cy, R = G.R, k = G.k;
+    c.clearRect(0, 0, D.w, D.h);
 
     const refActive = isTarget({ type: 'rot' });
-    // círculos cada 1 V eficaz
+    const nR = Math.floor(R / k + 1e-9);
     c.strokeStyle = refActive ? '#cfd6dd' : COL.grid; c.lineWidth = 1;
-    for (let v = 1; v <= 3; v++) { c.beginPath(); c.arc(cx, cy, v * k, 0, 2 * Math.PI); c.stroke(); }
+    for (let v = 1; v <= nR; v++) { c.beginPath(); c.arc(cx, cy, v * k, 0, 2 * Math.PI); c.stroke(); }
     c.beginPath(); c.moveTo(cx - R, cy); c.lineTo(cx, cy); c.moveTo(cx, cy - R); c.lineTo(cx, cy + R); c.stroke();
     c.fillStyle = COL.muted; c.font = '10px system-ui, sans-serif';
     c.textAlign = 'center'; c.textBaseline = 'top';
-    for (let v = 1; v <= 3; v++) c.fillText(v + ' V', cx - v * k, cy + 3);
+    for (let v = 2; v <= nR; v += 2) c.fillText(String(v), cx - v * k, cy + 3);
 
     // semieje de referencia fijo: origen de tiempos elegido
     c.strokeStyle = COL.ink; c.lineWidth = 3;
     c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + R, cy); c.stroke();
 
-    // rayo tenue del origen inicial t = 0, girado ωt1 en sentido antihorario
+    // rayo tenue del origen inicial t = 0
     if (state.wt1 !== 0) {
       const a = state.wt1 * DEG;
       c.strokeStyle = COL.ghost; c.lineWidth = refActive ? 2.5 : 1.5; c.setLineDash([6, 5]);
       c.beginPath(); c.moveTo(cx, cy); c.lineTo(cx + R * Math.cos(a), cy - R * Math.sin(a)); c.stroke();
       c.setLineDash([]);
-      tag(c, 't = 0', cx + R * 0.5 * Math.cos(a), cy - R * 0.5 * Math.sin(a), COL.ghost, 'center', '11px');
+      tag(c, 't = 0', cx + R * 0.82 * Math.cos(a), cy - R * 0.82 * Math.sin(a), COL.ghost, 'center', '11px');
     }
 
-    // fasores
+    // paralelogramos de potencia: Q = Im(V·I*) con (I, V); P = Im(V·(−jI)*) con (−jI, V)
+    const pw = powers();
+    function para(j, kind) {
+      const A = G.tip(1), B = G.tip(2, j);
+      const val = kind === 'Q' ? pw.Q : pw.P, stroke = kind === 'Q' ? COL.orange : COL.green;
+      c.beginPath(); c.moveTo(cx, cy); c.lineTo(A.x, A.y); c.lineTo(A.x + B.x - cx, A.y + B.y - cy); c.lineTo(B.x, B.y); c.closePath();
+      c.fillStyle = FILL[kind]; c.fill();
+      if (val < -0.005) { c.fillStyle = hatch(c, stroke); c.fill(); }
+      c.strokeStyle = stroke; c.lineWidth = 1.2; c.setLineDash([4, 3]); c.stroke(); c.setLineDash([]);
+    }
+    if (bothVisible() && state.showQ) para(false, 'Q');
+    if (bothVisible() && state.showP) para(true, 'P');
+
+    // arco del desfase φ entre I y V
+    if (bothVisible() && pw.phi !== 0) {
+      const r = Math.min(R * 0.18, 28);
+      c.strokeStyle = COL.ink; c.lineWidth = 1.2;
+      c.beginPath(); c.arc(cx, cy, r, -phiP(2) * DEG, -phiP(1) * DEG, pw.phi > 0); c.stroke();
+    }
+
+    // fasor auxiliar −jI, punteado (solo con P)
+    if (showJI()) {
+      const t = G.tip(2, true);
+      const active = isTarget({ type: 'tip', i: 2 }) || isTarget({ type: 'wave', i: 2 });
+      c.setLineDash([2, 4]);
+      arrow(c, cx, cy, t.x, t.y, COL[2], active ? 3 : 2);
+      c.fillStyle = COL[2];
+      c.beginPath(); c.arc(t.x, t.y, active ? 7 : 5, 0, 2 * Math.PI); c.fill();
+    }
+
+    // fasores V e I
     const sig = SIGNALS();
-    if (drag && drag.i && sig.length === 2 && drag.i === 1) sig.reverse();
+    if (drag && drag.i === 1 && sig.length === 2) sig.reverse();
     for (const i of sig) {
-      const t = pg.tip(i);
+      const t = G.tip(i);
       const active = isTarget({ type: 'tip', i }) || isTarget({ type: 'wave', i });
       arrow(c, cx, cy, t.x, t.y, COL[i], active ? 4 : 3);
       c.fillStyle = COL[i];
       c.beginPath(); c.arc(t.x, t.y, active ? 8 : 6, 0, 2 * Math.PI); c.fill();
     }
-    // rótulos polares (después de todas las flechas para que no queden tapados)
-    c.font = 'bold 13px system-ui, sans-serif';
-    const labels = sig.map(i => {
-      const t = pg.tip(i), a = phiP(i) * DEG;
-      const text = (state['A' + i] / SQRT2).toFixed(2) + ' ∠ ' + fmtDeg(phiP(i));
-      const tw = c.measureText(text).width;
-      // se coloca prolongando el fasor, sin salirse del lienzo
-      let x = t.x + 14 * Math.cos(a) + (Math.cos(a) >= 0 ? tw / 2 : -tw / 2);
-      let y = t.y - 16 * Math.sin(a);
-      x = Math.max(tw / 2 + 4, Math.min(P.w - tw / 2 - 4, x));
-      return { i, text, tw, x, y };
+
+    // rótulos: forma polar para V e I; «−jI» para el auxiliar
+    const fsz = '13px';
+    c.font = 'bold ' + fsz + ' system-ui, sans-serif';
+    const items = sig.map(i => ({ i, j: false, text: fmtNum(state['A' + i] / SQRT2, 2) + ' ' + UNIT[i] + ' ∠ ' + fmtDeg(phiP(i)) }));
+    if (showJI()) items.push({ i: 2, j: true, text: '−jI' });
+    const labels = items.map(it => {
+      const t = G.tip(it.i, it.j), a = G.ang(it.i, it.j) * DEG;
+      const tw = c.measureText(it.text).width;
+      let x = t.x + 12 * Math.cos(a) + (Math.cos(a) >= 0 ? tw / 2 : -tw / 2);
+      let y = t.y - 14 * Math.sin(a);
+      x = Math.max(tw / 2 + 3, Math.min(D.w - tw / 2 - 3, x));
+      return Object.assign(it, { tw, x, y });
     });
-    // si los dos rótulos chocan, se separan en vertical
-    if (labels.length === 2) {
-      const [L1, L2] = labels, gap = 19;
-      if (Math.abs(L1.x - L2.x) < (L1.tw + L2.tw) / 2 + 6 && Math.abs(L1.y - L2.y) < gap) {
-        const mid = (L1.y + L2.y) / 2, up = L1.y <= L2.y ? L1 : L2, dn = up === L1 ? L2 : L1;
-        up.y = mid - gap / 2; dn.y = mid + gap / 2;
+    // separar en vertical los rótulos que chocan
+    for (let pass = 0; pass < 3; pass++) {
+      for (let m = 0; m < labels.length; m++) for (let n = m + 1; n < labels.length; n++) {
+        const L1 = labels[m], L2 = labels[n], gap = 19;
+        if (Math.abs(L1.x - L2.x) < (L1.tw + L2.tw) / 2 + 6 && Math.abs(L1.y - L2.y) < gap) {
+          const mid = (L1.y + L2.y) / 2, up = L1.y <= L2.y ? L1 : L2, dn = up === L1 ? L2 : L1;
+          up.y = mid - gap / 2; dn.y = mid + gap / 2;
+        }
       }
     }
     for (const L of labels) {
-      L.y = Math.max(10, Math.min(P.h - 10, L.y));
-      tag(c, L.text, L.x, L.y, COL[L.i], 'center', '13px');
+      L.y = Math.max(40, Math.min(D.h - 9, L.y));
+      tag(c, L.text, L.x, L.y, COL[L.i], 'center', fsz);
+    }
+
+    // φ en la franja superior derecha
+    if (bothVisible()) {
+      c.font = 'bold 13px system-ui, sans-serif';
+      c.textAlign = 'right'; c.textBaseline = 'middle'; c.fillStyle = COL.ink;
+      c.fillText('φ = ' + fmtDeg(pw.phi), D.w - 8, 16);
     }
   }
 
   function arrow(c, x0, y0, x1, y1, color, lw) {
     const ang = Math.atan2(y1 - y0, x1 - x0), len = Math.hypot(x1 - x0, y1 - y0);
-    const head = Math.min(12, len * 0.4);
+    const head = Math.min(11, len * 0.4);
     c.strokeStyle = color; c.fillStyle = color; c.lineWidth = lw;
     c.beginPath(); c.moveTo(x0, y0);
     c.lineTo(x1 - head * 0.8 * Math.cos(ang), y1 - head * 0.8 * Math.sin(ang)); c.stroke();
+    c.setLineDash([]);
     c.beginPath(); c.moveTo(x1, y1);
     c.lineTo(x1 - head * Math.cos(ang - 0.4), y1 - head * Math.sin(ang - 0.4));
     c.lineTo(x1 - head * Math.cos(ang + 0.4), y1 - head * Math.sin(ang + 0.4));
@@ -527,12 +703,16 @@
     $('sliderWt1').disabled = state.lock;
     $('refControl').classList.toggle('locked', state.lock);
     $('valueWt1').textContent = fmtDeg(state.wt1);
+    const pw = powers(), on = bothVisible();
+    $('valQ').textContent = on && state.showQ ? ' = ' + fmtNum(pw.Q, 2) + ' var' : '';
+    $('valP').textContent = on && state.showP ? ' = ' + fmtNum(pw.P, 2) + ' W' : '';
   }
+  function drawAll() { drawTime(); drawDiagram(); updateUI(); }
   let rafPending = false;
   function render() {
     if (rafPending) return;
     rafPending = true;
-    requestAnimationFrame(() => { rafPending = false; drawTime(); drawPhasor(); updateUI(); });
+    requestAnimationFrame(() => { rafPending = false; drawAll(); });
   }
   function isTarget(t) {
     const cur = drag || hover;
@@ -553,21 +733,19 @@
     const waves = SIGNALS().map(i => ({ type: 'wave', i, d: Math.abs(p.y - tg.yOf(wave(i, deg))) }))
       .sort((a, b) => a.d - b.d);
     if (waves.length && waves[0].d <= tol) return waves[0];
-    return state.lock ? null : { type: 'ref' };   // el fondo mueve el origen de tiempos
+    return state.lock ? null : { type: 'ref' };
   }
 
-  function hitPhasor(p, touch) {
-    const tol = touch ? 32 : 14;
-    const tips = SIGNALS().map(i => {
-      const t = pg.tip(i);
-      return { type: 'tip', i, d: Math.hypot(p.x - t.x, p.y - t.y) };
-    }).sort((a, b) => a.d - b.d);
+  function hitDiagram(p, touch) {
+    const tol = touch ? 30 : 14, G = geo();
+    const cand = SIGNALS().map(i => ({ type: 'tip', i, j: false }));
+    if (showJI()) cand.push({ type: 'tip', i: 2, j: true });
+    const tips = cand.map(h => { const t = G.tip(h.i, h.j); return Object.assign(h, { d: Math.hypot(p.x - t.x, p.y - t.y) }); })
+      .sort((a, b) => a.d - b.d);
     if (tips.length && tips[0].d <= tol) return tips[0];
-    const r = Math.hypot(p.x - pg.cx(), p.y - pg.cy());
-    return (!state.lock && r > 18) ? { type: 'rot' } : null;   // fuera de las puntas: girar el diagrama
+    const r = Math.hypot(p.x - G.cx, p.y - G.cy);
+    return (!state.lock && r > 14 && p.y > 30) ? { type: 'rot' } : null;
   }
-
-  const angleAt = p => Math.atan2(pg.cy() - p.y, p.x - pg.cx()) / DEG;
 
   // ---------- Arrastre ----------
   function beginTime(p, hit) {
@@ -583,7 +761,6 @@
   function moveTime(p) {
     const dDeg = (p.x - drag.x0) / tg.pxPerDeg();
     if (drag.type === 'ref') {
-      // las curvas siguen al dedo: arrastrar a la izquierda aumenta ωt1
       state.wt1 = norm(snap5(drag.wt10 - dDeg));
     } else {
       const i = drag.i;
@@ -591,20 +768,20 @@
       state['A' + i] = snapA(drag.A0 - (p.y - drag.y0) / tg.k() / drag.c);
     }
   }
-  function beginPhasor(p, hit) {
-    return { type: hit.type, i: hit.i, a0: angleAt(p), wt10: state.wt1 };
+  function beginDiagram(p, hit) {
+    return { type: hit.type, i: hit.i, j: hit.j, a0: angleAt(p), wt10: state.wt1 };
   }
-  function movePhasor(p) {
-    const a = angleAt(p);
+  function moveDiagram(p) {
+    const G = geo(), a = angleAt(p);
     if (drag.type === 'rot') {
       state.wt1 = norm(snap5(drag.wt10 + (a - drag.a0)));
     } else {
       const i = drag.i;
-      setPhiP(i, a);
-      state['A' + i] = snapA(Math.hypot(p.x - pg.cx(), pg.cy() - p.y) / pg.k() * SQRT2);
+      setPhiP(i, a + (drag.j ? 90 : 0));
+      state['A' + i] = snapA(Math.hypot(p.x - G.cx, G.cy - p.y) / G.k * SQRT2);
     }
   }
-  // fija la fase vista phi' y guarda la fase respecto al origen inicial
+  function angleAt(p) { const G = geo(); return Math.atan2(G.cy - p.y, p.x - G.cx) / DEG; }
   function setPhiP(i, pp) { state['phi' + i] = norm(snap5(pp) - state.wt1); }
 
   function attach(view, hitFn, beginFn, moveFn) {
@@ -644,13 +821,16 @@
     });
   }
   attach(T, hitTime, beginTime, moveTime);
-  attach(P, hitPhasor, beginPhasor, movePhasor);
+  attach(D, hitDiagram, beginDiagram, moveDiagram);
 
   // ---------- Controles ----------
   $('sliderWt1').addEventListener('input', function () {
     state.wt1 = norm(snap5(parseFloat(this.value))); render();
   });
   $('lockT').addEventListener('change', function () { state.lock = this.checked; render(); });
+  for (const x of ['P', 'Q']) {
+    $('show' + x).addEventListener('change', function () { state['show' + x] = this.checked; render(); });
+  }
   for (const i of [1, 2]) {
     $('show' + i).addEventListener('change', function () { state['show' + i] = this.checked; render(); });
   }
@@ -665,7 +845,7 @@
     if (e.key.toLowerCase() === 'h' && !e.ctrlKey && !e.metaKey) modal.style.display = 'block';
   });
 
-  // ---------- Idioma (ES / EU) ----------
+  // ---------- Idioma (EN / ES / EU) ----------
   const LANGS = ['en', 'es', 'eu'];
   const TITLES = { en: 'AC signals and phasors', es: 'Señales AC y fasores', eu: 'AC seinaleak eta fasoreak' };
   const ARIA = { en: ['Help', 'Close'], es: ['Ayuda', 'Cerrar'], eu: ['Laguntza', 'Itxi'] };
@@ -701,22 +881,27 @@
   })();
 
   // ---------- Arranque ----------
-  let lastW = [0, 0, 0];
+  let lastW = [];
   function resizeAll(force) {
-    const w = [$('timeBox').clientWidth, $('phasorBox').clientWidth, window.innerWidth];
+    const w = ['timeBox', 'phBox'].map(id => $(id).clientWidth).concat(window.innerWidth);
     if (!force && w.every((v, k) => v === lastW[k])) return;
     lastW = w;
-    T.resize(); P.resize(); rafPending = false;
-    drawTime(); drawPhasor(); updateUI();
+    T.resize(); D.resize(); rafPending = false;
+    drawAll();
   }
   window.addEventListener('resize', () => resizeAll());
   if ('ResizeObserver' in window) {
-    const ro = new ResizeObserver(() => resizeAll());
-    ro.observe($('timeBox')); ro.observe($('phasorBox'));
+    let roPending = false;                 // redimensionar en el siguiente fotograma, no dentro del observador
+    const ro = new ResizeObserver(() => {
+      if (roPending) return;
+      roPending = true;
+      requestAnimationFrame(() => { roPending = false; resizeAll(); });
+    });
+    ['timeBox', 'phBox'].forEach(id => ro.observe($(id)));
   }
   resizeAll(true);
 
-  window.__vac = { state, tg, pg, T, P, phiP };   // gancho para pruebas
+  window.__vac = { state, tg, geo, T, D, phiP, powers };   // gancho para pruebas
 })();
 </script>
 </body>
